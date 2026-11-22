@@ -4,6 +4,8 @@ import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { chiedi, ErroreAI, estraiJson, getConfigAI } from '../ai/ai'
 import { CardObiettivo, useDatiAtleta } from '../components/Obiettivi'
+import AbilitaMisurate from '../components/AbilitaMisurate'
+import { abilitaPerAI, useAbilita } from '../video/useAbilita'
 import { Empty, PageHeader, useToast } from '../components/ui'
 import { db, getImp, setImp } from '../db/db'
 import { fmt } from '../lib/date'
@@ -18,6 +20,7 @@ export default function Quadro() {
   const profilo = useLiveQuery(() => db.profilo.get('me'))
   const salvato = useLiveQuery(() => getImp<{ data: string; c: CommentoAI } | null>('quadroAI', null))
   const [occupato, setOccupato] = useState(false)
+  const abilita = useAbilita()
   const [errore, setErrore] = useState('')
   const q = useMemo(() => (dati && risultati ? costruisciQuadro(dati.punti, risultati, dati.eventi, dati.diario, profilo) : null), [dati, risultati, profilo])
 
@@ -29,7 +32,7 @@ export default function Quadro() {
     setOccupato(true)
     setErrore('')
     try {
-      const testo = await chiedi(cfg, { sistema: ISTRUZIONI_AI, testo: JSON.stringify(riassuntoPerAI(q!, dati!.punti, profilo)), maxToken: 8000 })
+      const testo = await chiedi(cfg, { sistema: ISTRUZIONI_AI, testo: JSON.stringify(riassuntoPerAI(q!, dati!.punti, profilo, abilitaPerAI(abilita))), maxToken: 8000 })
       const c = estraiJson<CommentoAI>(testo)
       await setImp('quadroAI', { data: new Date().toISOString(), c })
     } catch (e) {
@@ -115,6 +118,8 @@ export default function Quadro() {
           )}
         </>
       )}
+
+      <AbilitaMisurate profilo={profilo} />
 
       <section className="card">
         <div className="card-title">Allenamento e testa</div>

@@ -1,6 +1,6 @@
 import { db } from './db'
 
-const TABELLE = () => [db.profilo, db.eventi, db.diario, db.impostazioni, db.analisi, db.prove, db.drillPersonali, db.componenti, db.ricette, db.crono, db.lotti, db.armi, db.interventi, db.risultati, db.stageLab]
+const TABELLE = () => [db.profilo, db.eventi, db.diario, db.impostazioni, db.analisi, db.prove, db.drillPersonali, db.componenti, db.ricette, db.crono, db.lotti, db.armi, db.interventi, db.risultati, db.stageLab, db.corse]
 
 export const BACKUP_FORMATO = 'hitframe-backup'
 export const BACKUP_VERSIONE = 6
@@ -25,11 +25,12 @@ export interface Backup {
     interventi?: unknown[]
     risultati?: unknown[]
     stageLab?: unknown[]
+    corse?: unknown[]
   }
 }
 
 export async function creaBackup(): Promise<Backup> {
-  const [profilo, eventi, diario, impostazioni, analisi, prove, drillPersonali, componenti, ricette, crono, lotti, armi, interventi, risultati, stageLab] = await Promise.all([
+  const [profilo, eventi, diario, impostazioni, analisi, prove, drillPersonali, componenti, ricette, crono, lotti, armi, interventi, risultati, stageLab, corse] = await Promise.all([
     db.profilo.toArray(),
     db.eventi.toArray(),
     db.diario.toArray(),
@@ -45,13 +46,14 @@ export async function creaBackup(): Promise<Backup> {
     db.interventi.toArray(),
     db.risultati.toArray(),
     db.stageLab.toArray(),
+    db.corse.toArray(),
   ])
   return {
     formato: BACKUP_FORMATO,
     versione: BACKUP_VERSIONE,
     creato: new Date().toISOString(),
     // i PDF non entrano nel backup: restano le analisi, senza i disegni degli stage
-    dati: { profilo, eventi, diario, impostazioni, analisi: analisi.map((a) => ({ ...a, pdf: null })), prove, drillPersonali, componenti, ricette, crono, lotti, armi, interventi, risultati, stageLab },
+    dati: { profilo, eventi, diario, impostazioni, analisi: analisi.map((a) => ({ ...a, pdf: null })), prove, drillPersonali, componenti, ricette, crono, lotti, armi, interventi, risultati, stageLab, corse },
   }
 }
 
@@ -101,6 +103,7 @@ export async function ripristinaBackup(testo: string): Promise<{ eventi: number;
     await db.interventi.bulkPut((d.interventi ?? []) as never[])
     await db.risultati.bulkPut((d.risultati ?? []) as never[])
     await db.stageLab.bulkPut((d.stageLab ?? []) as never[])
+    await db.corse.bulkPut((d.corse ?? []) as never[])
   })
   return { eventi: d.eventi?.length ?? 0, diario: d.diario?.length ?? 0, analisi: d.analisi?.length ?? 0 }
 }

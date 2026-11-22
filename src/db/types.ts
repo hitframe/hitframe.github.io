@@ -391,3 +391,33 @@ export interface StageAllenamento {
   creato: string
   aggiornato: string
 }
+
+/** Tipo di ogni intervallo tra due colpi di una run (il primo è dal beep). */
+export type TipoIntervallo = 'primo' | 'split' | 'transizione' | 'ricarica' | 'movimento' | 'lungo'
+
+/** Una run analizzata con GDA Split (dati dall'audio del video, il video resta sul dispositivo). */
+export interface Corsa {
+  id?: number
+  creato: string
+  data: string // YYYY-MM-DD
+  titolo: string
+  file: string // nome del video
+  /** tempi dei colpi dal beep (già allineati al tempo ufficiale, se indicato) */
+  colpi: number[]
+  /** tipo dell'intervallo che termina a ogni colpo (stessa lunghezza di colpi) */
+  tipi: TipoIntervallo[]
+  /** colpi segnati "da verificare" da GDA Split */
+  daVerificare: number[]
+  tempoTimer: number | null
+  contesto: 'allenamento' | 'gara' | 'libero'
+  /** il primo colpo parte da mani in resa e arma in fondina: vale come estrazione */
+  partenzaStandard: boolean
+  eventoId: number | null
+  drillId: string | null
+  provaId: number | null
+  risultatoId: number | null
+  analisiId: number | null
+  stage: number | null
+  link: string
+  note: string
+}

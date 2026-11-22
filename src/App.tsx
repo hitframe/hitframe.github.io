@@ -30,6 +30,7 @@ const Quadro = lazy(() => import('./pages/Quadro'))
 const PaginaLicenze = lazy(() => import('./licenza/ui').then((m) => ({ default: m.PaginaLicenze })))
 const Mente = lazy(() => import('./pages/Mente'))
 const Video = lazy(() => import('./pages/Video'))
+const VideoRun = lazy(() => import('./pages/VideoRun'))
 const RisultatoDettaglio = lazy(() => import('./pages/RisultatoDettaglio'))
 
 type Fase =
@@ -106,6 +107,8 @@ function Applicazione() {
             <Route path="risultati" element={<Suspense fallback={<div className="page" />}><Risultati /></Suspense>} />
             <Route path="risultati/:id" element={<Suspense fallback={<div className="page" />}><RisultatoDettaglio /></Suspense>} />
             <Route path="video" element={<Suspense fallback={<div className="page" />}><Video /></Suspense>} />
+            <Route path="video/run" element={<Suspense fallback={<div className="page" />}><VideoRun /></Suspense>} />
+            <Route path="video/run/:id" element={<Suspense fallback={<div className="page" />}><VideoRun /></Suspense>} />
             <Route path="munizioni" element={<Munizioni />} />
             <Route path="munizioni/ricetta/:id" element={<RicettaDettaglio />} />
             <Route path="attrezzatura" element={<Attrezzatura />} />

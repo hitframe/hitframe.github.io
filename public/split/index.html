@@ -279,6 +279,11 @@ input[type=range]{width:100%;accent-color:var(--accent);min-height:36px}
 </div>
 </details>
 </div>
+<div class="card hide" id="hfCard">
+<h2 class="card-t">Hitframe</h2>
+<p class="hint" style="margin:0 0 10px">Porta i tempi in Hitframe: li colleghi all'allenamento, a un drill o allo stage della gara, e aggiornano le tue abilità. Se ti serve il video con la grafica, esportalo prima: uscendo da qui il video si chiude.</p>
+<button class="btn pri" id="toHf" style="width:100%">Salva in Hitframe</button>
+</div>
 <div class="card">
 <h2 class="card-t">Storico <button class="btn sm pri" id="save">Salva questa run</button></h2>
 <ul class="list" id="hist"></ul>
@@ -1774,6 +1779,14 @@ $('csv').addEventListener('click',()=>{if(!S.ctx){toast('Carica prima un video')
 $('json').addEventListener('click',()=>{if(!S.ctx){toast('Carica prima un video');return;}const p=payload();saveOut(textOut(safe(p.stage)+'.json',JSON.stringify(p,null,2),'application/json'));});
 $('copy').addEventListener('click',async()=>{if(!S.ctx)return;try{await navigator.clipboard.writeText(toCsv([payload()]).replace('﻿',''));toast('Split copiati');}catch(e){toast('Copia non riuscita in questo browser');}});
 const KEY='gda-split-history';
+// passaggio diretto a Hitframe (stessa origine): i dati viaggiano in localStorage, il video resta sul telefono
+if(/\/split\//.test(location.pathname))$('hfCard').classList.remove('hide');
+$('toHf').addEventListener('click',()=>{
+  if(!S.ctx){toast('Carica prima un video');return;}
+  const p=payload();p.shots=rows().map(r=>({n:r.n,t:+r.t.toFixed(3),split:+r.split.toFixed(3),kind:r.kind,flag:r.flag||null}));
+  try{localStorage.setItem('hf-split-in-arrivo',JSON.stringify(p));}catch(e){toast('Non riesco a passare i dati: usa “Scarica i dati (JSON)”');return;}
+  location.href='../index.html#/video/run';
+});
 function hist(){try{return JSON.parse(localStorage.getItem(KEY)||'[]');}catch(e){return[];}}
 function setHist(h){try{localStorage.setItem(KEY,JSON.stringify(h));return true;}catch(e){return false;}}
 function drawHist(){

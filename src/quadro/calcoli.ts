@@ -134,7 +134,7 @@ export function costruisciQuadro(punti: PuntoGara[], risultati: RisultatoGara[],
 }
 
 /** Riassunto compatto da mandare all'AI (niente nomi di altri tiratori). */
-export function riassuntoPerAI(q: Quadro, punti: PuntoGara[], profilo: Profilo | undefined) {
+export function riassuntoPerAI(q: Quadro, punti: PuntoGara[], profilo: Profilo | undefined, abilitaVideo?: unknown) {
   const r1 = (x: number) => Math.round(x * 10) / 10
   return {
     atleta: { divisione: profilo?.divisione, classe: profilo?.classe, arma: profilo?.arma },
@@ -148,6 +148,7 @@ export function riassuntoPerAI(q: Quadro, punti: PuntoGara[], profilo: Profilo |
     daMigliorare: q.deboli,
     obiettivi: (profilo?.obiettivi ?? []).map((o) => ({ titolo: o.titolo, entro: o.entro, orizzonte: o.orizzonte, fascia: o.min ? `${o.min}-${o.max ?? ''}` : undefined, tappe: o.tappe })),
     statoObiettivi: q.obiettivi,
+    abilitaMisurateDaiVideo: abilitaVideo,
   }
 }
 
@@ -162,7 +163,7 @@ export interface CommentoAI {
 }
 
 export const ISTRUZIONI_AI = `Sei un allenatore esperto di tiro dinamico sportivo IPSC (FITDS, Italia) e un mental coach.
-Ricevi in JSON lo storico di un tiratore: gare con percentuale in classifica (pct) e "punteggio reale" (reale: hit factor rispetto a un Grand Master in forma sugli stessi stage, 100 = GM in forma, indipendente da chi c'era in gara), statistiche di precisione e velocità, volume di allenamento, diario (umore, energia, concentrazione 1-5, sonno), obiettivi con tappe.
+Ricevi in JSON lo storico di un tiratore: gare con percentuale in classifica (pct) e "punteggio reale" (reale: hit factor rispetto a un Grand Master in forma sugli stessi stage, 100 = GM in forma, indipendente da chi c'era in gara), statistiche di precisione e velocità, tempi tecnici reali misurati dai video POV (estrazione, split, transizioni, ricariche, movimenti: mediana, migliore, costanza e tendenza, se presenti), volume di allenamento, diario (umore, energia, concentrazione 1-5, sonno), obiettivi con tappe.
 Scrivi in italiano, tono diretto, concreto e incoraggiante ma onesto: niente lodi generiche, ogni frase deve poggiare sui numeri.
 Ragiona sul punteggio reale più che sulla percentuale: una gara al 76% con un campo fortissimo può valere più di un 90% con un campo debole.
 Rispondi SOLO con un oggetto JSON con queste chiavi:

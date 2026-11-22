@@ -1,5 +1,6 @@
 import { useLiveQuery } from 'dexie-react-hooks'
-import { ArrowLeft, Shuffle, CalendarCheck, Dumbbell, Plus, Trash2, X } from 'lucide-react'
+import { sintesiCorsa } from '../video/corse'
+import { ArrowLeft, Shuffle, CalendarCheck, Dumbbell, Plus, Trash2, X, Clapperboard } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { DRILLS } from '../allenamento/drills'
@@ -270,6 +271,7 @@ function Stage({ a, r, libretto }: { a: Analisi; r: RisultatoGara; libretto: Lib
   const [verifica, setVerifica] = useState(false)
   const ab = libretto && r.abbinamento?.analisiId === libretto.id ? r.abbinamento : null
   const reale = useMemo(() => punteggioReale(r), [r])
+  const corse = useLiveQuery(() => (r.id != null ? db.corse.where('risultatoId').equals(r.id).toArray() : []), [r.id]) ?? []
   const lista = [...a.stages].sort((x, y) => (ordine === 'numero' ? x.n - y.n : (y.guadagnoErrori + y.guadagnoPrecisione) - (x.guadagnoErrori + x.guadagnoPrecisione) || x.s.pct - y.s.pct))
   return (
     <section className="card">
@@ -310,6 +312,20 @@ function Stage({ a, r, libretto }: { a: Analisi; r: RisultatoGara; libretto: Lib
                     {sr.precisione !== null ? ` · precisione ${f1(sr.precisione)}` : ''}{sr.velocita !== null ? ` · velocità ${f1(sr.velocita)}` : ''}
                     {` · vincitore ${Math.round(sr.vincitore)}`}
                   </div>
+                )
+              })()}
+              {(() => {
+                const c = corse.find((z) => z.stage === x.n)
+                if (!c) return null
+                const v = sintesiCorsa(c)
+                const p = (n: number | null) => (n == null ? null : n.toFixed(2).replace('.', ','))
+                return (
+                  <Link to={`/video/run/${c.id}`} className="meta video-stage" style={{ marginTop: 4, display: 'block' }}>
+                    <Clapperboard size={13} style={{ verticalAlign: -2 }} /> <b style={{ color: 'var(--text)' }}>Dal video:</b>
+                    {' '}primo colpo {p(v.primo)}{v.split != null ? ` · split ${p(v.split)}` : ''}{v.transizione != null ? ` · transizioni ${p(v.transizione)}` : ''}
+                    {v.ricariche.length ? ` · ricarica ${p(v.ricariche.reduce((a, b) => a + b, 0) / v.ricariche.length)}` : ''}
+                    {v.movimenti.length ? ` · movimenti ${p(v.movimenti.reduce((a, b) => a + b, 0))} in tutto` : ''}
+                  </Link>
                 )
               })()}
               {(() => {

@@ -1,6 +1,6 @@
 import Dexie, { type EntityTable } from 'dexie'
 import type { StageAllenamento } from './types'
-import type { AnalisiGara, Arma, Componente, DrillPersonale, Evento, Impostazione, Intervento, Lotto, Profilo, Prova, Ricetta, SessioneCrono, VoceDiario } from './types'
+import type { AnalisiGara, Arma, Componente, Corsa, DrillPersonale, Evento, Impostazione, Intervento, Lotto, Profilo, Prova, Ricetta, SessioneCrono, VoceDiario } from './types'
 import type { RisultatoGara } from '../risultati/motore'
 import { ARMA_DEFAULT, RIFERIMENTI_DEFAULT, TEMPI_DEFAULT } from './types'
 import { inSospensione, nuovoId, segnalaModifica } from '../sync/segnali'
@@ -22,6 +22,7 @@ export class HitframeDB extends Dexie {
   interventi!: EntityTable<Intervento, 'id'>
   risultati!: EntityTable<RisultatoGara, 'id'>
   stageLab!: EntityTable<StageAllenamento, 'id'>
+  corse!: EntityTable<Corsa, 'id'>
 
   constructor() {
     super('hitframe')
@@ -57,6 +58,10 @@ export class HitframeDB extends Dexie {
     // v6: stage designer
     this.version(6).stores({
       stageLab: '++id, nome, aggiornato',
+    })
+    // v7: run analizzate con GDA Split (dati del video POV)
+    this.version(7).stores({
+      corse: '++id, data, eventoId, drillId, risultatoId',
     })
   }
 }

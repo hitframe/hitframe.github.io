@@ -5,6 +5,9 @@ import { useLocation } from 'react-router-dom'
 import { chiedi, ErroreAI, getConfigAI, NOMI_FORNITORI } from '../ai/ai'
 import { db, getImp, normalizzaProfilo } from '../db/db'
 import { costruisciQuadro, riassuntoPerAI } from '../quadro/calcoli'
+import { campioni, statistiche } from '../video/corse'
+import { abilitaPerAI } from '../video/useAbilita'
+import { trovaDrill } from '../allenamento/servizi'
 import { analizza } from '../risultati/motore'
 import { puntiGara, tipiDaLibretto } from '../statistiche/calcoli'
 
@@ -57,11 +60,12 @@ export default function ChatAI() {
     setStoria([...prima, { ruolo: 'utente', testo: domanda }])
     setOccupato(true)
     try {
-      const [risultati, analisi, eventi, diario, p] = await Promise.all([db.risultati.toArray(), db.analisi.toArray(), db.eventi.toArray(), db.diario.toArray(), db.profilo.get('me')])
+      const [risultati, analisi, eventi, diario, p, corse, personali] = await Promise.all([db.risultati.toArray(), db.analisi.toArray(), db.eventi.toArray(), db.diario.toArray(), db.profilo.get('me'), db.corse.toArray(), db.drillPersonali.toArray()])
       const profilo = normalizzaProfilo(p)
       const punti = puntiGara(risultati, analisi)
       const q = costruisciQuadro(punti, risultati, eventi, diario, profilo)
-      const contesto = { atleta: riassuntoPerAI(q, punti, profilo), ...(await contestoPagina(pathname)) }
+      const abilita = abilitaPerAI({ stat: statistiche(campioni(corse, (id) => trovaDrill(id, personali))), run: corse.length })
+      const contesto = { atleta: riassuntoPerAI(q, punti, profilo, abilita), ...(await contestoPagina(pathname)) }
       const sistema = `${SISTEMA}\n\nDATI DEL TIRATORE (JSON):\n${JSON.stringify(contesto)}`
       const risposta = await chiedi(cfg, { sistema, testo: domanda, storia: prima.slice(-12), formato: 'testo', maxToken: 6000 })
       setStoria([...prima, { ruolo: 'utente', testo: domanda }, { ruolo: 'ai', testo: risposta.trim() || '…' }])
