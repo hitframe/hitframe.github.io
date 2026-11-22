@@ -89,6 +89,8 @@ export interface Profilo {
   abilita?: Partial<Record<string, number>>
   storicoAbilita?: { data: string; valori: Partial<Record<string, number>> }[]
   tempi: TempiPersonali
+  /** Quanto cresce il tempo per ogni metro oltre i 7 m (frazione, es. 0,035 = +3,5%), misurato dai video */
+  pendenzaDistanza?: number
   /** Obiettivi a breve e lungo termine */
   obiettivi?: Obiettivo[]
   aggiornato: string // ISO
@@ -420,4 +422,11 @@ export interface Corsa {
   stage: number | null
   link: string
   note: string
+  /** distanza tipica dei bersagli della run, in metri */
+  distanzaTipica?: number | null
+  /** bersaglio di ogni colpo: tipo e distanza (se diversa da quella tipica) */
+  bersagli?: (BersaglioColpo | null)[]
 }
+
+export type TipoBersaglioColpo = 'carta' | 'mini' | 'ferro'
+export interface BersaglioColpo { tipo: TipoBersaglioColpo; distanza: number | null }

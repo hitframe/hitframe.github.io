@@ -1,4 +1,5 @@
 import { addDays } from 'date-fns'
+import RunDelGiorno from './RunDelGiorno'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { useState } from 'react'
 import { db, nowIso } from '../db/db'
@@ -105,6 +106,8 @@ export default function DiarioForm({
             <input id="d-video" type="url" className="input" value={v.videoUrl} onChange={(e) => set('videoUrl', e.target.value)} placeholder="https://…" />
           </div>
         </div>
+
+        <RunDelGiorno data={v.data} eventoId={v.eventoId} />
 
         <div className="field">
           <span className="label">Tag</span>

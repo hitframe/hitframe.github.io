@@ -1,6 +1,6 @@
 import { useState } from 'react'
 
-export interface Serie { nome: string; valori: (number | null)[]; colore: string; tratteggio?: boolean }
+export interface Serie { nome: string; valori: (number | null)[]; colore: string; tratteggio?: boolean; /** linea di riferimento: senza punti */ riferimento?: boolean }
 
 /** Media mobile centrata: tiene la linea leggibile quando le gare sono tante. */
 function mediaMobile(v: (number | null)[], finestra: number): (number | null)[] {
@@ -84,7 +84,7 @@ export function GraficoLinee({ etichette, serie, formato, invertito = false, min
               {denso && !s.tratteggio && grezzi.map((p, i) => <circle key={`g${i}`} cx={p[0]} cy={p[1]} r={1.9} fill={s.colore} opacity={0.38} />)}
               <polyline fill="none" stroke={s.colore} strokeWidth={denso ? 2.4 : 2} strokeDasharray={s.tratteggio ? '5 4' : undefined} strokeLinejoin="round" strokeLinecap="round"
                 opacity={s.tratteggio && denso ? 0.7 : 1} points={linea.map((p) => p.join(',')).join(' ')} />
-              {!denso && linea.map((p, i) => <circle key={i} cx={p[0]} cy={p[1]} r={s.tratteggio ? 3 : 4} fill={s.tratteggio ? 'var(--bg)' : s.colore} stroke={s.colore} strokeWidth={s.tratteggio ? 1.5 : 0} />)}
+              {!denso && !s.riferimento && linea.map((p, i) => <circle key={i} cx={p[0]} cy={p[1]} r={s.tratteggio ? 3 : 4} fill={s.tratteggio ? 'var(--bg)' : s.colore} stroke={s.colore} strokeWidth={s.tratteggio ? 1.5 : 0} />)}
               {denso && ultimo != null && <circle cx={x(iUltimo)} cy={y(ultimo)} r={3.5} fill={s.colore} />}
               {hover !== null && s.valori[hover] !== null && <circle cx={x(hover)} cy={y(s.valori[hover]!)} r={4.5} fill={s.colore} stroke="var(--bg)" strokeWidth={1.5} />}
               {ultimo !== undefined && ultimo !== null && (
@@ -109,7 +109,7 @@ export function GraficoLinee({ etichette, serie, formato, invertito = false, min
       )}
       {(serie.length > 1 || denso) && (
         <div className="legenda-schema" style={{ marginTop: 4 }}>
-          {serie.map((s) => <span key={s.nome}><i style={{ background: s.colore, height: 3 }} />{s.nome}{s.tratteggio ? ' (tratteggio)' : ''}</span>)}
+          {serie.map((s) => <span key={s.nome}><i style={{ background: s.tratteggio ? `repeating-linear-gradient(90deg, ${s.colore} 0 5px, transparent 5px 8px)` : s.colore, height: 3 }} />{s.nome}</span>)}
           {denso && <span style={{ color: 'var(--faint)' }}>linea: media di {finestra} gare · puntini: singole gare</span>}
         </div>
       )}

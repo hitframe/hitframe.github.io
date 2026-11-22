@@ -39,7 +39,7 @@ export interface Piano {
   avvisi: string[]
 }
 
-type ProfiloPiano = Pick<Profilo, 'tempi' | 'divisione' | 'classe' | 'armaDettagli'> & { abilita?: Abilita }
+type ProfiloPiano = Pick<Profilo, 'tempi' | 'divisione' | 'classe' | 'armaDettagli' | 'pendenzaDistanza'> & { abilita?: Abilita }
 
 interface Parametri {
   aggressivo: boolean
@@ -76,7 +76,8 @@ interface CostoTiro { tempo: number; puntiPersi: number; penalita: number; colpi
 /** Tempo e rischio per ingaggiare un bersaglio (senza la transizione). */
 function costoTiro(b: BersaglioMappa, d: number, p: ProfiloPiano, k: Parametri, inMovimento: boolean): CostoTiro {
   const t = p.tempi
-  const fd = 1 + Math.max(0, d - 7) * 0.035
+  // costo della distanza: il tuo, misurato dai video, oppure +3,5% al metro oltre i 7 m
+  const fd = 1 + Math.max(0, d - 7) * (p.pendenzaDistanza ?? 0.035)
   const metallo = TIPI_BERSAGLIO[b.tipo].metallo
   // abilità che contano per questo bersaglio
   const L = metallo

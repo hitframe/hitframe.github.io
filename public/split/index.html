@@ -137,6 +137,12 @@ button{touch-action:manipulation}
 .tbl tr.tr td.sp{color:var(--accent)}
 .badge{display:inline-flex;align-items:center;border-radius:999px;padding:2px 8px;font-size:11.5px;font-weight:600;background:var(--surface-3);color:var(--muted);white-space:nowrap}
 .badge.y{color:var(--accent)}
+#tagDlg{background:var(--surface);color:var(--text);border:1px solid var(--border);border-radius:16px;padding:16px;width:calc(100% - 32px);max-width:420px}
+#tagDlg::backdrop{background:rgba(0,0,0,.65)}
+#tagDlg .field{margin-top:10px}
+#tagDlg .chips{display:flex;flex-wrap:wrap;gap:6px}
+#tagDlg .lbl{font-size:12.5px;color:var(--muted);font-weight:600}
+.tagb{border:0;background:var(--surface-3);color:var(--text);border-radius:8px;min-width:34px;min-height:30px;margin-left:6px;cursor:pointer;font-size:14px}
 /* esporta */
 .opts{display:grid;gap:10px}
 .opt{display:grid;grid-template-columns:28px minmax(0,1fr);gap:10px;align-items:start;padding:14px;border-radius:var(--r);border:1px solid var(--border);background:var(--surface);cursor:pointer;text-align:left;width:100%}
@@ -182,7 +188,7 @@ input[type=range]{width:100%;accent-color:var(--accent);min-height:36px}
 <a class="hfback hide" id="hfBack" href="../index.html#/video" aria-label="Torna a Hitframe"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg>Hitframe</a>
 <svg width="30" height="30" viewBox="0 0 100 100" aria-hidden="true"><circle cx="50" cy="50" r="44" fill="none" stroke="#fff" stroke-width="12"/><polygon points="41,64 52,36 60,36 49,64" fill="#e5ea1e"/></svg>
 <span class="wm">GDA <b>Split</b></span>
-<span class="file" id="fileName">motore 3.2 · b23.1</span>
+<span class="file" id="fileName">motore 3.2 · b24</span>
 <button class="btn sm hide" id="newBtn">Nuovo video</button>
 </header>
 
@@ -267,8 +273,16 @@ input[type=range]{width:100%;accent-color:var(--accent);min-height:36px}
 <div class="stats six" id="stats"></div>
 <div class="card">
 <h2 class="card-t">Split <small>tocca una riga per vederla nel video</small></h2>
-<table class="tbl"><thead><tr><th scope="col">#</th><th scope="col">Dal beep</th><th scope="col">Split</th><th scope="col">Tipo</th></tr></thead><tbody id="tbody"></tbody></table>
+<table class="tbl"><thead><tr><th scope="col">#</th><th scope="col">Dal beep</th><th scope="col">Split</th><th scope="col">Tipo e bersaglio</th></tr></thead><tbody id="tbody"></tbody></table>
+<div class="field" style="margin-top:12px"><label for="distTip">Distanza tipica dei bersagli (m)</label><input class="input" id="distTip" inputmode="decimal" placeholder="es. 7"><p class="hint">Tocca la matita di un colpo per indicare ricarica, movimento, ferro o un bersaglio più lontano: in Hitframe i tempi finiscono nella fascia giusta e il confronto con il profilo è più vero.</p></div>
 </div>
+<dialog id="tagDlg" aria-labelledby="tagT">
+<h2 class="card-t" id="tagT">Colpo</h2>
+<div class="field" id="tagTipoF"><span class="lbl">Cosa c'è prima del colpo</span><div class="chips" id="tagTipo"></div></div>
+<div class="field"><span class="lbl">Bersaglio</span><div class="chips" id="tagBers"></div></div>
+<div class="field"><span class="lbl">Distanza (m)</span><div class="chips" id="tagDist"></div><input class="input" id="tagDistIn" inputmode="decimal" placeholder="altra distanza in metri"></div>
+<div class="row" style="margin-top:14px"><button class="btn sm" id="tagNext">Stesso bersaglio e distanza ai colpi dopo</button><button class="btn sm pri" id="tagOk" style="margin-left:auto">Fatto</button></div>
+</dialog>
 <div class="card">
 <details>
 <summary>Sensibilità del motore<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></summary>
@@ -1026,7 +1040,7 @@ const FORCE_MR=/[?&]mr=1/.test(location.search);
 // ---------- messaggi ----------
 let toastT=0;
 function toast(m){const t=$('toast');t.textContent=m;t.classList.remove('hide');clearTimeout(toastT);toastT=setTimeout(()=>t.classList.add('hide'),2600);}
-function diagText(){return ['GDA Split b23.1',navigator.userAgent,'nome: '+(S.name||'-'),...DIAG.steps,'dur '+(S.dur||0).toFixed(2)+' sr '+(S.sr||'-')+' fps '+(S.fps||'-'),'beep '+S.beep+' colpi '+(S.shots||[]).length+' ctx '+(!!S.ctx),'stato: '+$('status').textContent,'video el: '+v.videoWidth+'x'+v.videoHeight+' dur='+v.duration+' '+vst()+' hud='+hud.width+'x'+hud.height+' dpr='+window.devicePixelRatio+' vis='+document.visibilityState,'--- registro ---',...MLOG].join('\n');}
+function diagText(){return ['GDA Split b24',navigator.userAgent,'nome: '+(S.name||'-'),...DIAG.steps,'dur '+(S.dur||0).toFixed(2)+' sr '+(S.sr||'-')+' fps '+(S.fps||'-'),'beep '+S.beep+' colpi '+(S.shots||[]).length+' ctx '+(!!S.ctx),'stato: '+$('status').textContent,'video el: '+v.videoWidth+'x'+v.videoHeight+' dur='+v.duration+' '+vst()+' hud='+hud.width+'x'+hud.height+' dpr='+window.devicePixelRatio+' vis='+document.visibilityState,'--- registro ---',...MLOG].join('\n');}
 function copyDiag(){const t=diagText();const fb=()=>{const ta=document.createElement('textarea');ta.value=t;ta.style.cssText='position:fixed;top:0;left:0;opacity:0';document.body.appendChild(ta);ta.focus();ta.select();try{document.execCommand('copy');}catch(e){}ta.remove();};
   try{if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(t).then(()=>toast('Dettagli copiati: incollali nella chat'),()=>{fb();toast('Dettagli copiati: incollali nella chat');});else{fb();toast('Dettagli copiati: incollali nella chat');}}catch(e){fb();}}
 function status(msg,level){const b=$('status');b.className='banner'+(level?' '+level:'');b.innerHTML=IC_INFO+'<span></span>';b.lastChild.textContent=msg;}
@@ -1274,6 +1288,7 @@ function reclassify(){
   S.man.add.forEach(a=>{if(a>S.beep&&!shots.some(s=>Math.abs(s.t-a)<0.004)){shots.push({t:a,flag:'manuale'});rej=rej.filter(r=>Math.abs(r.t-a)>=0.004);}});
   if(S.man.endAt!=null){shots.filter(s=>s.t>S.man.endAt+0.002).forEach(s=>rej.push({t:s.t,why:'dopo la fine'}));shots=shots.filter(s=>s.t<=S.man.endAt+0.002);}
   shots.sort((p,q)=>p.t-q.t);
+  (S.shots||[]).forEach(o=>{if(!o.tag&&!o.bers&&!o.dist)return;const n=shots.find(s=>Math.abs(s.t-o.t)<0.012);if(n){n.tag=o.tag;n.bers=o.bers;n.dist=o.dist;}});
   S.shots=shots;S.rejected=rej;S.info=R.info||{};
   // tempo ufficiale: l'ultimo colpo cade esattamente sul tempo del timer spostando di poco l'inizio del conteggio
   S.beepOff=0;let offMsg='';
@@ -1303,7 +1318,7 @@ function bRef(){return S.beep==null?null:S.beep+(S.beepOff||0);}
 function rows(){
   const b=bRef()??0,sh=S.shots.filter(s=>s.t>b).sort((p,q)=>p.t-q.t);
   let prev=b;
-  return sh.map((s,i)=>{const sp=s.t-prev;prev=s.t;return{n:i+1,abs:s.t,t:s.t-b,split:sp,flag:s.flag,kind:i===0?'Primo colpo':(sp>=0.5?'Transizione':'Split')};});
+  return sh.map((s,i)=>{const sp=s.t-prev;prev=s.t;return{n:i+1,abs:s.t,t:s.t-b,split:sp,flag:s.flag,tag:s.tag||null,bers:s.bers||null,dist:s.dist||null,kind:i===0?'Primo colpo':(s.tag||(sp>=0.5?'Transizione':'Split'))};});
 }
 function summary(){
   const R=rows(),total=R.length?R[R.length-1].t:null;
@@ -1320,10 +1335,10 @@ function renderAll(){
   let six=tile('Tempo',fmt(s.total),'s',true)+tile('Colpi',s.R.length+(exp?'<small>/'+exp+'</small>':''),'')+tile('Primo colpo',fmt(s.first),'s')+tile('Split medio',fmt(s.avg),'s')+tile('Transizioni',fmt(s.trans),'s');
   if(plan&&s.total!=null){const dd=s.total-plan;six+=tile('Diff. dal timer',(dd>=0?'+':'')+dd.toFixed(2),'s');}else six+=tile('Split migliore',fmt(s.best),'s');
   $('stats').innerHTML=six;
-  $('tbody').innerHTML=s.R.length?s.R.map(r=>'<tr data-t="'+r.abs+'" class="'+(r.kind==='Transizione'?'tr':'')+'"><td class="n">'+r.n+'</td><td>'+r.t.toFixed(2)+'</td><td class="sp">'+r.split.toFixed(2)+'</td><td><span class="badge'+(r.kind==='Transizione'?' y':'')+'">'+r.kind+(s.worst&&r.n===s.worst.n?' · la più lunga':'')+'</span>'+(r.flag?' <span class="badge y">'+FLAG[r.flag]+'</span>':'')+'</td></tr>').join(''):'<tr><td colspan="4" class="muted">Nessun colpo.</td></tr>';
+  $('tbody').innerHTML=s.R.length?s.R.map(r=>'<tr data-t="'+r.abs+'" class="'+(r.kind==='Transizione'?'tr':'')+'"><td class="n">'+r.n+'</td><td>'+r.t.toFixed(2)+'</td><td class="sp">'+r.split.toFixed(2)+'</td><td><span class="badge'+(r.kind==='Transizione'?' y':'')+'">'+r.kind+(s.worst&&r.n===s.worst.n?' · la più lunga':'')+'</span>'+(r.flag?' <span class="badge y">'+FLAG[r.flag]+'</span>':'')+(r.bers?' <span class="badge">'+(r.bers==='ferro'?'Ferro':'Mini')+'</span>':'')+(r.dist?' <span class="badge">'+r.dist+' m</span>':'')+'<button class="tagb" data-tag="'+r.abs+'" aria-label="Tipo e bersaglio del colpo '+r.n+'">✎</button></td></tr>').join(''):'<tr><td colspan="4" class="muted">Nessun colpo.</td></tr>';
   drawAll();
 }
-$('tbody').addEventListener('click',e=>{const tr=e.target.closest('tr[data-t]');if(!tr)return;showTab('run');v.pause();setTime(+tr.dataset.t);});
+$('tbody').addEventListener('click',e=>{const tb=e.target.closest('[data-tag]');if(tb){e.stopPropagation();apriTag(+tb.dataset.tag);return;}const tr=e.target.closest('tr[data-t]');if(!tr)return;showTab('run');v.pause();setTime(+tr.dataset.t);});
 let planT=0;
 $('official').addEventListener('change',()=>{if(S.ctx)reclassify();});
 ['plan','expected'].forEach(id=>{$(id).addEventListener('input',()=>{clearTimeout(planT);planT=setTimeout(()=>{if(S.ctx)reclassify();},700);});$(id).addEventListener('change',()=>{clearTimeout(planT);if(S.ctx)reclassify();});});
@@ -1768,7 +1783,7 @@ const textOut=(name,text,mime)=>({name,blob:new Blob([text],{type:mime}),mime});
 // ---------- dati ----------
 function payload(){
   const R=rows();return{stage:$('stage').value||S.name,file:S.name,date:new Date().toISOString(),beep:S.beep,plan:planVal()||null,expected:expVal()||null,
-    total:R.length?+R[R.length-1].t.toFixed(3):null,shots:R.map(r=>({n:r.n,t:+r.t.toFixed(3),split:+r.split.toFixed(3),kind:r.kind}))};
+    total:R.length?+R[R.length-1].t.toFixed(3):null,distTipica:+String($('distTip').value).replace(',','.')||null,shots:R.map(r=>({n:r.n,t:+r.t.toFixed(3),split:+r.split.toFixed(3),kind:r.kind,tag:r.tag,bers:r.bers,dist:r.dist}))};
 }
 function toCsv(list){
   const lines=['stage;data;colpo;tempo_dal_beep;split;tipo;tempo_totale;tempo_timer'];
@@ -1783,10 +1798,35 @@ const KEY='gda-split-history';
 if(/\/split\//.test(location.pathname))$('hfCard').classList.remove('hide');
 $('toHf').addEventListener('click',()=>{
   if(!S.ctx){toast('Carica prima un video');return;}
-  const p=payload();p.shots=rows().map(r=>({n:r.n,t:+r.t.toFixed(3),split:+r.split.toFixed(3),kind:r.kind,flag:r.flag||null}));
+  const p=payload();p.shots=rows().map(r=>({n:r.n,t:+r.t.toFixed(3),split:+r.split.toFixed(3),kind:r.kind,flag:r.flag||null,tag:r.tag,bers:r.bers,dist:r.dist}));
   try{localStorage.setItem('hf-split-in-arrivo',JSON.stringify(p));}catch(e){toast('Non riesco a passare i dati: usa “Scarica i dati (JSON)”');return;}
   location.href='../index.html#/video/run';
 });
+// ---------- etichette dei colpi: cosa c'è prima, bersaglio, distanza ----------
+let tagShot=null;
+const DIST_RAPIDE=[5,7,10,15,20,25];
+function chipsHtml(el,opts,cur,attr){el.innerHTML=opts.map(o=>{const on=String(o[0])===String(cur);return'<button type="button" class="btn sm'+(on?' pri':'')+'" data-'+attr+'="'+o[0]+'" aria-pressed="'+on+'">'+o[1]+'</button>';}).join('');}
+function drawTag(){
+  const s=tagShot;if(!s)return;const r=rows().find(x=>Math.abs(x.abs-s.t)<0.006);
+  $('tagT').textContent='Colpo '+(r?r.n+(r.n===1?' · estrazione '+r.split.toFixed(2)+' s':' · +'+r.split.toFixed(2)+' s'):'');
+  $('tagTipoF').style.display=r&&r.n===1?'none':'';
+  chipsHtml($('tagTipo'),[['','Automatico'],['Split','Split'],['Transizione','Transizione'],['Ricarica','Ricarica'],['Movimento','Movimento']],s.tag||'','tipo');
+  chipsHtml($('tagBers'),[['','Carta'],['mini','Mini'],['ferro','Ferro']],s.bers||'','bers');
+  chipsHtml($('tagDist'),[['','Tipica']].concat(DIST_RAPIDE.map(d=>[d,d])),DIST_RAPIDE.includes(s.dist)?s.dist:(s.dist?'x':''),'dist');
+  $('tagDistIn').value=s.dist&&!DIST_RAPIDE.includes(s.dist)?String(s.dist):'';
+}
+function apriTag(abs){tagShot=S.shots.find(s=>Math.abs(s.t-abs)<0.006)||null;if(!tagShot)return;drawTag();$('tagDlg').showModal();}
+$('tagDlg').addEventListener('click',e=>{
+  const b=e.target.closest('button');if(!b||!tagShot)return;
+  if(b.dataset.tipo!==undefined)tagShot.tag=b.dataset.tipo||null;
+  else if(b.dataset.bers!==undefined)tagShot.bers=b.dataset.bers||null;
+  else if(b.dataset.dist!==undefined)tagShot.dist=+b.dataset.dist||null;
+  else if(b.id==='tagNext'){const dopo=S.shots.filter(x=>x.t>tagShot.t);dopo.forEach(x=>{x.bers=tagShot.bers||null;x.dist=tagShot.dist||null;});toast('Applicato a '+dopo.length+' colpi');}
+  else if(b.id==='tagOk'){$('tagDlg').close();return;}
+  drawTag();renderAll();
+});
+$('tagDistIn').addEventListener('change',()=>{if(!tagShot)return;const v=+String($('tagDistIn').value).replace(',','.');tagShot.dist=v>0&&v<200?Math.round(v*10)/10:null;drawTag();renderAll();});
+$('tagDlg').addEventListener('close',()=>{tagShot=null;});
 function hist(){try{return JSON.parse(localStorage.getItem(KEY)||'[]');}catch(e){return[];}}
 function setHist(h){try{localStorage.setItem(KEY,JSON.stringify(h));return true;}catch(e){return false;}}
 function drawHist(){

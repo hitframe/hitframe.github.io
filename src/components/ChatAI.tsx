@@ -5,7 +5,7 @@ import { useLocation } from 'react-router-dom'
 import { chiedi, ErroreAI, getConfigAI, NOMI_FORNITORI } from '../ai/ai'
 import { db, getImp, normalizzaProfilo } from '../db/db'
 import { costruisciQuadro, riassuntoPerAI } from '../quadro/calcoli'
-import { campioni, statistiche } from '../video/corse'
+import { campioni, pendenzaDistanza, statistiche } from '../video/corse'
 import { abilitaPerAI } from '../video/useAbilita'
 import { trovaDrill } from '../allenamento/servizi'
 import { analizza } from '../risultati/motore'
@@ -64,7 +64,8 @@ export default function ChatAI() {
       const profilo = normalizzaProfilo(p)
       const punti = puntiGara(risultati, analisi)
       const q = costruisciQuadro(punti, risultati, eventi, diario, profilo)
-      const abilita = abilitaPerAI({ stat: statistiche(campioni(corse, (id) => trovaDrill(id, personali))), run: corse.length })
+      const camp = campioni(corse, (id) => trovaDrill(id, personali))
+      const abilita = abilitaPerAI({ stat: statistiche(camp), run: corse.length, pendenza: pendenzaDistanza(camp) })
       const contesto = { atleta: riassuntoPerAI(q, punti, profilo, abilita), ...(await contestoPagina(pathname)) }
       const sistema = `${SISTEMA}\n\nDATI DEL TIRATORE (JSON):\n${JSON.stringify(contesto)}`
       const risposta = await chiedi(cfg, { sistema, testo: domanda, storia: prima.slice(-12), formato: 'testo', maxToken: 6000 })

@@ -1,13 +1,15 @@
 import { useLiveQuery } from 'dexie-react-hooks'
-import { BookOpen, PenLine, Search } from 'lucide-react'
+import { BookOpen, Clapperboard, PenLine, Search } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import DiarioForm from '../components/DiarioForm'
+import { useRunPerGiorno } from '../components/RunDelGiorno'
 import { Empty, PageHeader } from '../components/ui'
 import { db } from '../db/db'
 import type { VoceDiario } from '../db/types'
 import { capitalize, fmt, quando } from '../lib/date'
 
 export default function Diario() {
+  const runGiorno = useRunPerGiorno()
   const [form, setForm] = useState<{ voce?: VoceDiario } | null>(null)
   const [cerca, setCerca] = useState('')
   const [tag, setTag] = useState<string | null>(null)
@@ -97,6 +99,7 @@ export default function Diario() {
                     <div className="chips" style={{ marginTop: 8 }}>
                       <span className="badge">Umore {v.umore}/5</span>
                       <span className="badge">Focus {v.concentrazione}/5</span>
+                      {runGiorno.get(v.data) ? <span className="badge"><Clapperboard size={12} style={{ verticalAlign: -1 }} /> {runGiorno.get(v.data)} run dal video</span> : null}
                       {v.tag.map((t) => <span key={t} className="badge">{t}</span>)}
                     </div>
                   </div>

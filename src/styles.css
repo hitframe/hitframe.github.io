@@ -665,7 +665,7 @@ span.run-tipo { display: flex; align-items: center; font-weight: 600; }
 .run-dubbio { grid-column: 2 / -1; justify-content: flex-start; min-height: 34px; font-size: 13px; color: var(--accent); }
 .run-badge { color: var(--accent); }
 .abilita-lista { display: flex; flex-direction: column; gap: 8px; }
-.abilita-riga { display: grid; grid-template-columns: 1fr auto; gap: 4px 12px; align-items: center; padding: 10px 12px; border-radius: 12px; background: var(--surface-2); }
+.abilita-riga { display: grid; grid-template-columns: minmax(8.5em, 1fr) minmax(0, auto); gap: 4px 12px; align-items: center; padding: 10px 12px; border-radius: 12px; background: var(--surface-2); }
 .abilita-nome { display: flex; flex-direction: column; min-width: 0; }
 .abilita-nome span { font-size: 12.5px; color: var(--muted); }
 .abilita-val { display: flex; flex-direction: column; align-items: flex-end; text-align: right; }
@@ -676,3 +676,14 @@ span.run-tipo { display: flex; align-items: center; font-weight: 600; }
 .abilita-trend.meglio { color: var(--ok); background: color-mix(in srgb, var(--ok) 15%, transparent); }
 .abilita-trend.peggio { color: var(--fuoco); background: color-mix(in srgb, var(--fuoco) 15%, transparent); }
 .video-stage { text-decoration: none; }
+.abilita-blocco { display: flex; flex-direction: column; }
+button.abilita-riga { width: 100%; border: 0; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.abilita-extra { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.abilita-extra .badge { font-size: 11.5px; }
+.abilita-giu { margin-left: auto; color: var(--muted); transition: transform .2s; }
+.abilita-giu.su { transform: rotate(180deg); }
+.abilita-grafico { padding: 6px 2px 2px; }
+.abilita-dist { display: flex; gap: 8px; align-items: flex-start; margin: 12px 0 0; font-size: 13.5px; }
+.abilita-dist svg { flex-shrink: 0; margin-top: 2px; color: var(--accent); }
+.run-bers { grid-column: 2 / -1; display: grid; grid-template-columns: 1fr 76px; gap: 6px; }
+.run-bers .select, .run-bers .input { min-height: 36px; font-size: 13.5px; padding-top: 4px; padding-bottom: 4px; }

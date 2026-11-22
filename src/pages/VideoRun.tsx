@@ -5,10 +5,10 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { PageHeader, Segmented, useToast } from '../components/ui'
 import { db } from '../db/db'
-import type { Corsa, TipoIntervallo } from '../db/types'
+import type { BersaglioColpo, Corsa, TipoBersaglioColpo, TipoIntervallo } from '../db/types'
 import { trovaDrill, tuttiDrill, majorDiDefault } from '../allenamento/servizi'
 import { fmt } from '../lib/date'
-import { CHIAVE_ARRIVO, daRunSplit, NOMI_TIPO, provaDaCorsa, sintesiCorsa, valida } from '../video/corse'
+import { CHIAVE_ARRIVO, daRunSplit, metriDa, NOMI_TIPO, provaDaCorsa, sintesiCorsa, valida } from '../video/corse'
 
 const f2 = (n: number | null | undefined) => (n == null ? '—' : n.toFixed(2).replace('.', ','))
 const TIPI_SCELTA: TipoIntervallo[] = ['split', 'transizione', 'ricarica', 'movimento', 'lungo']
@@ -74,8 +74,18 @@ function VideoRun({ id }: { id?: string }) {
   const s = sintesiCorsa(c as Corsa)
   const sceltaDrill = (did: string) => {
     const d = did ? trovaDrill(did, personali) : undefined
-    setC((o) => o && { ...o, drillId: did || null, partenzaStandard: d ? /fondina/i.test(d.partenza ?? '') && /resa/i.test(d.partenza ?? '') : o.partenzaStandard })
+    setC((o) => o && { ...o, drillId: did || null, partenzaStandard: d ? /fondina/i.test(d.partenza ?? '') && /resa/i.test(d.partenza ?? '') : o.partenzaStandard, distanzaTipica: o.distanzaTipica ?? metriDa(d?.distanza) })
   }
+
+  const bers = (i: number): BersaglioColpo | null => c.bersagli?.[i] ?? null
+  const setBers = (i: number, b: Partial<BersaglioColpo>) => {
+    const lista = c.colpi.map((_, j) => c.bersagli?.[j] ?? null)
+    const prima = lista[i] ?? { tipo: 'carta' as TipoBersaglioColpo, distanza: null }
+    const nuovo = { ...prima, ...b }
+    lista[i] = nuovo.tipo === 'carta' && nuovo.distanza == null ? null : nuovo
+    set('bersagli', lista)
+  }
+  const distanzaShot = (i: number) => bers(i)?.distanza ?? null
 
   async function salva() {
     if (!c) return
@@ -184,6 +194,9 @@ function VideoRun({ id }: { id?: string }) {
           </>
         )}
 
+        <label className="field"><span>Distanza tipica dei bersagli (m)</span>
+          <input className="input" inputMode="numeric" placeholder="es. 7" value={c.distanzaTipica ?? ''} onChange={(e) => set('distanzaTipica', Number(e.target.value.replace(',', '.')) || null)} />
+        </label>
         <label className="check">
           <input type="checkbox" checked={c.partenzaStandard} onChange={(e) => set('partenzaStandard', e.target.checked)} />
           Partenza da mani in resa e arma in fondina: il primo colpo vale come estrazione
@@ -194,6 +207,7 @@ function VideoRun({ id }: { id?: string }) {
         <div className="card-title" style={{ marginBottom: 4 }}><span>Colpi e intervalli</span></div>
         <p className="prose" style={{ margin: '0 0 10px', fontSize: 13 }}>
           Sotto 0,5 s è uno split, fino a 1 s una transizione. Le pause più lunghe dimmi tu se sono una ricarica o un movimento: senza, restano fuori dalle statistiche.
+          Per ogni colpo puoi indicare se il bersaglio è un ferro, un mini o è più lontano: i tempi finiscono nella fascia giusta e lo split a 15 m non sporca quello a 5 m.
         </p>
         <div className="run-tabella">
           {c.colpi.map((t, i) => {
@@ -210,6 +224,17 @@ function VideoRun({ id }: { id?: string }) {
                     {TIPI_SCELTA.map((k) => <option key={k} value={k}>{NOMI_TIPO[k]}</option>)}
                   </select>
                 )}
+                <div className="run-bers">
+                  <select className="select" aria-label={`Bersaglio del colpo ${i + 1}`} value={bers(i)?.tipo ?? 'carta'}
+                    onChange={(e) => setBers(i, { tipo: e.target.value as TipoBersaglioColpo })}>
+                    <option value="carta">Carta</option>
+                    <option value="mini">Mini</option>
+                    <option value="ferro">Ferro</option>
+                  </select>
+                  <input className="input" inputMode="numeric" aria-label={`Distanza del colpo ${i + 1} in metri`}
+                    placeholder={c.distanzaTipica ? `${c.distanzaTipica} m` : 'm'} value={distanzaShot(i) ?? ''}
+                    onChange={(e) => setBers(i, { distanza: Number(e.target.value.replace(',', '.')) || null })} />
+                </div>
                 {dubbio && (
                   <button type="button" className="btn ghost run-dubbio" title="GDA Split l'aveva segnato da verificare: escluso dalle statistiche"
                     onClick={() => set('daVerificare', c.daVerificare.filter((x) => x !== i))}>
