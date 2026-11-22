@@ -31,6 +31,8 @@ export default defineConfig(({ mode }) => ({
       workbox: {
         globPatterns: ['**/*.{js,mjs,css,html,svg,png,woff2}'],
         maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
+        // GDA Split è una pagina a sé (public/split): non va sostituita con l'app
+        navigateFallbackDenylist: [/\/split\//],
       },
     }),
   ],

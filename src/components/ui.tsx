@@ -1,5 +1,6 @@
 import { X } from 'lucide-react'
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react'
+import { createPortal } from 'react-dom'
 
 /** Il marchio: sagoma IPSC ottagonale "a mirino" con il punto in zona A. */
 export function Mark({ size = 32 }: { size?: number }) {
@@ -51,7 +52,8 @@ export function Sheet({ title, onClose, children }: { title: string; onClose: ()
       node?.removeEventListener('keydown', onKey)
     }
   }, [onClose])
-  return (
+  // nel body: aperta dal menu laterale (che ha un suo livello) finiva sotto la scheda della prossima gara
+  return createPortal(
     <div className="overlay" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
       <div className="sheet" role="dialog" aria-modal="true" aria-label={title} ref={ref}>
         <div className="sheet-head">
@@ -62,7 +64,8 @@ export function Sheet({ title, onClose, children }: { title: string; onClose: ()
         </div>
         {children}
       </div>
-    </div>
+    </div>,
+    document.body,
   )
 }
 

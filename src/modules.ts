@@ -4,6 +4,7 @@ import {
   Brain,
   Compass,
   CalendarDays,
+  Clapperboard,
   FileSearch,
   Home,
   ListChecks,
@@ -21,14 +22,14 @@ import {
 export interface Voce { path: string; label: string; icon: LucideIcon; descrizione?: string }
 
 export interface Area extends Voce {
-  id: 'oggi' | 'allenati' | 'gare' | 'progressi' | 'materiale'
+  id: 'oggi' | 'allenati' | 'gare' | 'video' | 'progressi' | 'materiale'
   /** sezioni dell'area, mostrate come schede in alto */
   sezioni: Voce[]
   /** prefissi di percorso che appartengono all'area */
   prefissi: string[]
 }
 
-/** Le cinque aree della barra in basso: il ciclo del tiratore. */
+/** Le aree della barra in basso: il ciclo del tiratore. */
 export const AREE: Area[] = [
   { id: 'oggi', path: '/', label: 'Oggi', icon: Home, sezioni: [], prefissi: [] },
   {
@@ -50,6 +51,7 @@ export const AREE: Area[] = [
     ],
     prefissi: ['/gare', '/analisi-gara', '/risultati'],
   },
+  { id: 'video', path: '/video', label: 'Video', icon: Clapperboard, sezioni: [], prefissi: ['/video'] },
   {
     id: 'progressi', path: '/statistiche', label: 'Progressi', icon: BarChart3,
     sezioni: [
