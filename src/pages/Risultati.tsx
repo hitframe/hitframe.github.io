@@ -2,6 +2,7 @@ import { useLiveQuery } from 'dexie-react-hooks'
 import { AlertTriangle, ChevronRight, Crosshair, FileUp, Image as ImageIcon, Medal } from 'lucide-react'
 import { useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+import SpazioPartner from '../components/Partner'
 import { Empty, PageHeader, Sheet, useToast } from '../components/ui'
 import { db, normalizzaProfilo } from '../db/db'
 import { fmtMedio, oggiKey } from '../lib/date'
@@ -182,6 +183,7 @@ export default function Risultati() {
           </div>
         </Sheet>
       )}
+      <SpazioPartner posto="risultati" />
     </div>
   )
 }
