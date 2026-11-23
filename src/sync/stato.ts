@@ -5,7 +5,7 @@
  * - quando l'app va in secondo piano, quando torna la rete e ogni pochi minuti.
  */
 import { useSyncExternalStore } from 'react'
-import { AccessoRichiesto, avviaAccesso, getAccount, googleRaggiungibile, puoRinnovareDaSolo, rinnovaSilenzioso, tokenValido } from '../google/auth'
+import { AccessoRichiesto, avviaAccesso, getAccount, puoRinnovareDaSolo, rinnovaSilenzioso, tokenValido } from '../google/auth'
 import { leggiBase, modificheInSospeso, sincronizza } from './motore'
 import { suModifica } from './segnali'
 import { allineaPdf } from './pdf'
@@ -135,13 +135,7 @@ export function avviaSincronizzazione() {
   })
   setInterval(() => { if (document.visibilityState === 'visible') void sincronizzaOra() }, OGNI)
 
-  // all'apertura: se l'accesso è scaduto e c'è rete, un passaggio lampo da Google (una volta per sessione)
-  if (getAccount() && leggiBase() && online() && !tokenValido() && !puoRinnovareDaSolo() && !sessionStorage.getItem(K_TENTATO)) {
-    void googleRaggiungibile().then((ok) => {
-      if (ok) rinnovaAccesso(true)
-      else void sincronizzaOra()
-    })
-    return
-  }
+  // all'apertura non si passa MAI da Google da soli: con poco segnale (poligono) la pagina di Google
+  // non carica e l'app resterebbe bianca. Se l'accesso è scaduto compare la nuvola "Accedi": un tocco quando c'è rete.
   void sincronizzaOra()
 }
