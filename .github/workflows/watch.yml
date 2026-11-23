@@ -1,0 +1,31 @@
+name: Timer Apple Watch
+
+on:
+  push:
+    paths: ['watch/**', '.github/workflows/watch.yml']
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - name: XcodeGen
+        run: brew install xcodegen
+      - name: Progetto Xcode
+        working-directory: watch
+        run: xcodegen generate
+      - name: Compila per il simulatore (senza firma)
+        working-directory: watch
+        run: |
+          xcodebuild -project HitframeTimer.xcodeproj -scheme HitframeTimer \
+            -destination 'generic/platform=watchOS Simulator' \
+            CODE_SIGNING_ALLOWED=NO build | tail -40
+          test ${PIPESTATUS[0]} -eq 0
+      - name: Pacchetto per Xcode
+        run: |
+          cd watch && rm -rf build && cd .. && zip -qr HitframeTimer-Xcode.zip watch -x 'watch/build/*'
+      - uses: actions/upload-artifact@v4
+        with:
+          name: HitframeTimer-Xcode
+          path: HitframeTimer-Xcode.zip

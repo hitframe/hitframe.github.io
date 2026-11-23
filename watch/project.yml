@@ -1,0 +1,26 @@
+name: HitframeTimer
+options:
+  bundleIdPrefix: it.gda
+  deploymentTarget:
+    watchOS: "10.0"
+  createIntermediateGroups: true
+settings:
+  base:
+    MARKETING_VERSION: "0.1.0"
+    CURRENT_PROJECT_VERSION: "1"
+    SWIFT_VERSION: "5.0"
+targets:
+  HitframeTimer:
+    type: application
+    platform: watchOS
+    sources:
+      - HitframeTimer
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: it.gda.hitframetimer
+        PRODUCT_NAME: Hitframe Timer
+        INFOPLIST_FILE: HitframeTimer/Info.plist
+        GENERATE_INFOPLIST_FILE: NO
+        TARGETED_DEVICE_FAMILY: "4"
+        CODE_SIGN_STYLE: Automatic
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
