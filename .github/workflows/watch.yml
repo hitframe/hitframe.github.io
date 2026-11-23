@@ -5,6 +5,9 @@ on:
     paths: ['watch/**', '.github/workflows/watch.yml']
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: macos-15
@@ -29,3 +32,9 @@ jobs:
         with:
           name: HitframeTimer-Xcode
           path: HitframeTimer-Xcode.zip
+      - name: Pubblica il pacchetto (release watch-latest)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release view watch-latest >/dev/null 2>&1 || gh release create watch-latest --title "Hitframe Timer (Apple Watch) — progetto Xcode" --notes "Progetto Xcode del timer per Apple Watch." --prerelease
+          gh release upload watch-latest HitframeTimer-Xcode.zip --clobber
