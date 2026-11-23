@@ -1,3 +1,4 @@
+import Io from './pages/Io'
 import { lazy, Suspense, useEffect, useState } from 'react'
 import { Benvenuto, Collegamento, SceltaDati } from './components/Accesso'
 import { accessoDisponibile, getAccount, setAccount, type EsitoRitorno } from './google/auth'
@@ -32,6 +33,7 @@ const Mente = lazy(() => import('./pages/Mente'))
 const Video = lazy(() => import('./pages/Video'))
 const VideoRun = lazy(() => import('./pages/VideoRun'))
 const RisultatoDettaglio = lazy(() => import('./pages/RisultatoDettaglio'))
+const Fisico = lazy(() => import('./pages/Fisico'))
 
 type Fase =
   | { tipo: 'app' }
@@ -93,6 +95,9 @@ function Applicazione() {
             <Route path="calendario" element={<Calendario />} />
             <Route path="diario" element={<Diario />} />
             <Route path="profilo" element={<Profilo />} />
+            <Route path="io" element={<Io />} />
+            <Route path="io/:parte" element={<Profilo />} />
+            <Route path="fisico/*" element={<Suspense fallback={<div className="page" />}><Fisico /></Suspense>} />
             <Route path="impostazioni" element={<Impostazioni />} />
             <Route path="allenamento" element={<Allenamento />} />
             <Route path="allenamento/:id" element={<DrillDettaglio />} />

@@ -1,5 +1,5 @@
 import { Clapperboard, RefreshCw, RotateCcw, Save } from 'lucide-react'
-import { Link } from 'react-router-dom'
+import { Link, useParams } from 'react-router-dom'
 import { useEffect, useState } from 'react'
 import { SezioneObiettivi } from '../components/Obiettivi'
 import { QuestionarioAbilita, RiepilogoAbilita } from '../components/Abilita'
@@ -25,6 +25,14 @@ const TEMPI: { k: keyof TempiPersonali; nome: string; desc: string; unita: strin
 ]
 
 const TIPI = ['Short', 'Medium', 'Long'] as const
+const TITOLI: Record<string, string> = { atleta: 'Atleta', tempi: 'Tempi tecnici', abilita: 'Abilità', gara: 'Tempi di gara', obiettivi: 'Obiettivi' }
+const SOTTO: Record<string, string> = {
+  atleta: 'Chi sei e con cosa tiri',
+  tempi: 'I tuoi tempi medi: la base di drill, piani e stime',
+  abilita: 'Questionario e misure dai video',
+  gara: 'Tempi tipici su stage puliti, per Short, Medium e Long',
+  obiettivi: 'Cosa vuoi ottenere in questa stagione',
+}
 const f2 = (n: number) => n.toFixed(2).replace('.', ',')
 const txt = (n: number | null | undefined) => (n === null || n === undefined ? '' : String(n).replace('.', ','))
 
@@ -44,6 +52,8 @@ export default function Profilo() {
   const [sporco, setSporco] = useState(false)
   const [questionario, setQuestionario] = useState(false)
   const abilitaVideo = useAbilita()
+  const { parte } = useParams()
+  const vedi = (k: string) => !parte || parte === k
 
   useEffect(() => {
     db.profilo.get('me').then((x) => {
@@ -119,13 +129,14 @@ export default function Profilo() {
   return (
     <div className="page">
       <PageHeader
-        title="Profilo"
-        sub="I tuoi dati e i tuoi tempi: la base di ogni calcolo"
+        title={TITOLI[parte ?? ''] ?? 'Profilo'}
+        sub={SOTTO[parte ?? ''] ?? 'I tuoi dati e i tuoi tempi: la base di ogni calcolo'}
         actions={<button className="btn primary" onClick={salva} disabled={!sporco}><Save size={18} /> Salva</button>}
       />
 
-      <SezioneObiettivi />
+      {vedi('obiettivi') && <SezioneObiettivi />}
 
+      {vedi('atleta') && (
       <section className="card form">
         <div className="card-title" style={{ marginBottom: 0 }}>Atleta</div>
         <div className="field">
@@ -164,9 +175,10 @@ export default function Profilo() {
             options={[{ value: 'destra', label: 'Destra' }, { value: 'sinistra', label: 'Sinistra' }]} />
         </div>
       </section>
+      )}
 
-      <RiepilogoAbilita abilita={p.abilita} storico={p.storicoAbilita} onQuestionario={() => setQuestionario(true)} />
-      {abilitaVideo && (() => {
+      {vedi('abilita') && <RiepilogoAbilita abilita={p.abilita} storico={p.storicoAbilita} onQuestionario={() => setQuestionario(true)} />}
+      {abilitaVideo && (vedi('abilita') || vedi('tempi')) && (() => {
         const prop = proposteDaVideo(abilitaVideo, p)
         async function aggiornaDaVideo() {
           const np = { ...p!, tempi: { ...p!.tempi, ...prop.tempi }, ...(prop.pendenza != null ? { pendenzaDistanza: prop.pendenza } : {}) }
@@ -204,6 +216,7 @@ export default function Profilo() {
         )
       })()}
 
+      {vedi('atleta') && (
       <section className="card form">
         <div className="card-title" style={{ marginBottom: 0 }}>Arma principale</div>
         <div className="field">
@@ -256,7 +269,9 @@ export default function Profilo() {
           <textarea id="a-note" className="textarea" style={{ minHeight: 80 }} value={a.note} onChange={(e) => setArma('note', e.target.value)} placeholder="Molle, guida, modifiche…" />
         </div>
       </section>
+      )}
 
+      {vedi('gara') && (
       <section className="card">
         <div className="card-title">
           <span>Tempi di riferimento in gara</span>
@@ -281,7 +296,9 @@ export default function Profilo() {
           ))}
         </div>
       </section>
+      )}
 
+      {vedi('tempi') && (
       <div className="grid-2" style={{ alignItems: 'start' }}>
         <section className="card">
           <div className="card-title">
@@ -326,6 +343,7 @@ export default function Profilo() {
           </div>
         </section>
       </div>
+      )}
 
       {questionario && (
         <QuestionarioAbilita iniziale={p.abilita} onClose={() => setQuestionario(false)}

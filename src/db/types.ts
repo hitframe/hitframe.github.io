@@ -395,6 +395,20 @@ export interface StageAllenamento {
 }
 
 /** Tipo di ogni intervallo tra due colpi di una run (il primo è dal beep). */
+/** Un allenamento fisico svolto (sezione Fisico). */
+export interface SessioneFisico {
+  id?: number
+  data: string // YYYY-MM-DD
+  ora: string
+  allenamentoId: string
+  titolo: string
+  durataSec: number
+  /** Com'è andata, da 1 (facile) a 5 (durissima) */
+  fatica: number | null
+  completo: boolean
+  creato: string
+}
+
 export type TipoIntervallo = 'primo' | 'split' | 'transizione' | 'ricarica' | 'movimento' | 'ricaricaMov' | 'lungo'
 
 /** Una run analizzata con GDA Split (dati dall'audio del video, il video resta sul dispositivo). */

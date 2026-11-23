@@ -1,7 +1,8 @@
 import { addDays } from 'date-fns'
 import { collegaAnalisiPerGara } from '../analisi/collega'
 import { useLiveQuery } from 'dexie-react-hooks'
-import { AlertTriangle, BellRing, Package, Wrench, BookOpen, FileSearch, PenLine, Timer as TimerIcon, Trophy, UserRound } from 'lucide-react'
+import { AlertTriangle, BellRing, Package, Wrench, BookOpen, FileSearch, PenLine, Timer as TimerIcon, Trophy, UserRound, Dumbbell, Clapperboard } from 'lucide-react'
+import SpazioPartner from '../components/Partner'
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import DiarioForm from '../components/DiarioForm'
@@ -77,7 +78,7 @@ export default function Home() {
       </header>
 
       {!profilo && (
-        <Link to="/profilo" className="item" style={{ borderColor: 'var(--accent)' }}>
+        <Link to="/io/atleta" className="item" style={{ borderColor: 'var(--accent)' }}>
           <UserRound size={22} color="var(--accent)" />
           <div style={{ flex: 1 }}>
             <div className="title">Completa il tuo profilo</div>
@@ -140,6 +141,11 @@ export default function Home() {
         <Link to="/timer" className="btn" style={{ flex: 1 }}><TimerIcon size={16} /> Timer</Link>
         <button className="btn" style={{ flex: 1 }} onClick={() => setDiario({})}><PenLine size={16} /> Diario</button>
       </div>
+      <div className="row">
+        <Link to="/fisico" className="btn" style={{ flex: 1 }}><Dumbbell size={16} /> Fisico</Link>
+        <Link to="/video" className="btn" style={{ flex: 1 }}><Clapperboard size={16} /> Analizza video</Link>
+      </div>
+      <SpazioPartner posto="oggi" />
 
       {iscrizioni.length > 0 && (
         <section className="card">

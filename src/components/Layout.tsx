@@ -1,3 +1,4 @@
+import { ArrowLeft } from 'lucide-react'
 import { Link, NavLink, Outlet, useLocation } from 'react-router-dom'
 import { useEffect } from 'react'
 import { AREE, STRUMENTI, areaDi } from '../modules'
@@ -52,6 +53,8 @@ export default function Layout() {
 
   const area = areaDi(pathname)
   const attiva = (p: string) => pathname === p || pathname.startsWith(p + '/')
+  const attivaSez = (s: { path: string; figli?: { path: string }[] }) => attiva(s.path) || !!s.figli?.some((f) => attiva(f.path))
+  const sezione = area?.sezioni.find(attivaSez)
 
   return (
     <div className="app">
@@ -65,7 +68,7 @@ export default function Layout() {
             {area?.id === a.id && a.sezioni.length > 1 && (
               <div className="nav-sub">
                 {a.sezioni.map((s) => (
-                  <NavLink key={s.path} to={s.path} className={() => `nav-sublink${attiva(s.path) ? ' active' : ''}`}>{s.label}</NavLink>
+                  <NavLink key={s.path} to={s.path} className={() => `nav-sublink${attivaSez(s) ? ' active' : ''}`}>{s.label}</NavLink>
                 ))}
               </div>
             )}
@@ -95,11 +98,21 @@ export default function Layout() {
         {area && area.sezioni.length > 1 && (
           <nav className="sottomenu" aria-label={`Sezioni di ${area.label}`}>
             {area.sezioni.map((s) => (
-              <Link key={s.path} to={s.path} className={`sottomenu-voce${attiva(s.path) ? ' attiva' : ''}`} aria-current={attiva(s.path) ? 'page' : undefined}>
+              <Link key={s.path} to={s.path} className={`sottomenu-voce${attivaSez(s) ? ' attiva' : ''}`} aria-current={attivaSez(s) ? 'page' : undefined}>
                 <s.icon size={15} /> {s.label}
               </Link>
             ))}
           </nav>
+        )}
+        {sezione?.figli && (
+          <nav className="sottomenu sottomenu-2" aria-label={`Sezioni di ${sezione.label}`}>
+            {sezione.figli.map((f) => (
+              <Link key={f.path} to={f.path} className={`sottomenu-voce2${attiva(f.path) ? ' attiva' : ''}`} aria-current={attiva(f.path) ? 'page' : undefined}>{f.label}</Link>
+            ))}
+          </nav>
+        )}
+        {area?.id === 'io' && pathname !== '/io' && (
+          <div className="sottomenu"><Link to="/io" className="btn ghost" style={{ marginLeft: -8 }}><ArrowLeft size={18} /> Io</Link></div>
         )}
         <BannerLicenza />
         <Outlet />
