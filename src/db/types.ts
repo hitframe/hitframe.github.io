@@ -395,7 +395,7 @@ export interface StageAllenamento {
 }
 
 /** Tipo di ogni intervallo tra due colpi di una run (il primo è dal beep). */
-export type TipoIntervallo = 'primo' | 'split' | 'transizione' | 'ricarica' | 'movimento' | 'lungo'
+export type TipoIntervallo = 'primo' | 'split' | 'transizione' | 'ricarica' | 'movimento' | 'ricaricaMov' | 'lungo'
 
 /** Una run analizzata con GDA Split (dati dall'audio del video, il video resta sul dispositivo). */
 export interface Corsa {

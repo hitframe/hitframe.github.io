@@ -1,6 +1,6 @@
 /** Una run di GDA Split in Hitframe: la colleghi all'allenamento, a un drill o allo stage di una gara, e i tempi entrano nelle tue abilità. */
 import { useLiveQuery } from 'dexie-react-hooks'
-import { AlertTriangle, Check, Clapperboard, Link2, Trash2 } from 'lucide-react'
+import { AlertTriangle, ArrowLeft, Check, Clapperboard, Link2, Trash2 } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { PageHeader, Segmented, useToast } from '../components/ui'
@@ -11,7 +11,7 @@ import { fmt } from '../lib/date'
 import { CHIAVE_ARRIVO, daRunSplit, metriDa, NOMI_TIPO, provaDaCorsa, sintesiCorsa, valida } from '../video/corse'
 
 const f2 = (n: number | null | undefined) => (n == null ? '—' : n.toFixed(2).replace('.', ','))
-const TIPI_SCELTA: TipoIntervallo[] = ['split', 'transizione', 'ricarica', 'movimento', 'lungo']
+const TIPI_SCELTA: TipoIntervallo[] = ['split', 'transizione', 'ricarica', 'movimento', 'ricaricaMov', 'lungo']
 
 function leggiArrivo(): Omit<Corsa, 'id'> | null {
   try {
@@ -121,6 +121,7 @@ function VideoRun({ id }: { id?: string }) {
 
   return (
     <div className="page">
+      <Link to="/video" className="btn ghost" style={{ alignSelf: 'flex-start', marginLeft: -8 }}><ArrowLeft size={18} /> Video</Link>
       <PageHeader title={nuova ? 'Salva la run' : c.titolo} sub={`${fmt(c.data, 'd MMM yyyy')}${c.file ? ` · ${c.file}` : ''}`} />
 
       <div className="stats zone" style={{ gridTemplateColumns: 'repeat(4, minmax(0, 1fr))' }}>

@@ -21,27 +21,13 @@ export default function AbilitaMisurate({ profilo }: { profilo: Profilo | undefi
   const [aperta, setAperta] = useState<Metrica | null>(null)
   if (!a) return null
   const conDati = a.stat.filter((s) => s.n > 0)
-  const daAggiornare = conDati.filter((s) => {
-    const k = METRICHE.find((m) => m.k === s.k)?.profilo
-    return k && s.nBase >= MIN_PROFILO && profilo && Math.abs(profilo.tempi[k] - s.mediana) >= 0.02
-  })
-  const pendenzaNuova = a.pendenza && profilo && Math.abs((profilo.pendenzaDistanza ?? PENDENZA_STANDARD) - a.pendenza.pendenza) >= 0.003 ? a.pendenza : null
+  const { voci, tempi, pendenza } = proposteDaVideo(a, profilo)
 
   async function aggiorna() {
-    if (!profilo) return
-    const tempi = { ...profilo.tempi }
-    for (const s of daAggiornare) {
-      const k = METRICHE.find((m) => m.k === s.k)!.profilo!
-      tempi[k] = Math.round(s.mediana * 100) / 100
-    }
-    await db.profilo.update('me', { tempi, ...(pendenzaNuova ? { pendenzaDistanza: Math.round(pendenzaNuova.pendenza * 1000) / 1000 } : {}) })
+    if (!profilo || !voci.length) return
+    await db.profilo.update('me', { tempi: { ...profilo.tempi, ...tempi }, ...(pendenza != null ? { pendenzaDistanza: pendenza } : {}) })
     toast('Profilo aggiornato: i piani degli stage ora usano i tuoi tempi veri')
   }
-
-  const voci = [
-    ...daAggiornare.map((s) => METRICHE.find((m) => m.k === s.k)!.nome.toLowerCase()),
-    ...(pendenzaNuova ? ['costo della distanza'] : []),
-  ]
 
   return (
     <section className="card" id="abilita">
@@ -64,7 +50,7 @@ export default function AbilitaMisurate({ profilo }: { profilo: Profilo | undefi
                   <button type="button" className="abilita-riga" aria-expanded={su} onClick={() => setAperta(su ? null : s.k)}>
                     <div className="abilita-nome">
                       <b>{m.nome}</b>
-                      <span>{s.k === 'ricarica' || s.k === 'movimento' ? m.desc : s.nBase ? `Su ${NOMI_FASCIA.base}` : 'Nessuna misura su carta entro 8 m: valore su tutte'}</span>
+                      <span>{s.k === 'ricarica' || s.k === 'movimento' || s.k === 'ricaricaMov' ? m.desc : s.nBase ? `Su ${NOMI_FASCIA.base}` : 'Nessuna misura su carta entro 8 m: valore su tutte'}</span>
                     </div>
                     <div className="abilita-val">
                       <b>{f2(s.mediana)}<small> s</small></b>
@@ -123,4 +109,27 @@ function Crescita({ a, k, classe }: { a: Abilita; k: Metrica; classe: Classe | u
         serie={serie} formato={f2} invertito />
     </div>
   )
+}
+
+/** Cosa cambierebbe nel profilo usando i tempi misurati dai video (mediane su carta fino a 8 m). */
+export function proposteDaVideo(a: Abilita, profilo: Profilo | undefined | null) {
+  const tempi: Partial<Profilo['tempi']> = {}
+  const voci: string[] = []
+  const righe: { nome: string; video: number; profilo: number }[] = []
+  if (!profilo) return { tempi, voci, righe, pendenza: null as number | null }
+  for (const s of a.stat) {
+    const m = METRICHE.find((x) => x.k === s.k)
+    if (!m?.profilo || s.nBase < MIN_PROFILO) continue
+    righe.push({ nome: m.nome, video: s.mediana, profilo: profilo.tempi[m.profilo] })
+    if (Math.abs(profilo.tempi[m.profilo] - s.mediana) >= 0.02) {
+      tempi[m.profilo] = Math.round(s.mediana * 100) / 100
+      voci.push(m.nome.toLowerCase())
+    }
+  }
+  let pendenza: number | null = null
+  if (a.pendenza && Math.abs((profilo.pendenzaDistanza ?? PENDENZA_STANDARD) - a.pendenza.pendenza) >= 0.003) {
+    pendenza = Math.round(a.pendenza.pendenza * 1000) / 1000
+    voci.push('costo della distanza')
+  }
+  return { tempi, voci, righe, pendenza }
 }

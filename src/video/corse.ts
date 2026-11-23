@@ -19,14 +19,14 @@ export interface RunSplit {
   shots: { n?: number; t: number; split?: number; kind?: string; flag?: string | null; tag?: string | null; bers?: string | null; dist?: number | null }[]
 }
 
-const TAG: Record<string, TipoIntervallo> = { Split: 'split', Transizione: 'transizione', Ricarica: 'ricarica', Movimento: 'movimento' }
+const TAG: Record<string, TipoIntervallo> = { Split: 'split', Transizione: 'transizione', Ricarica: 'ricarica', Movimento: 'movimento', 'Ricarica in movimento': 'ricaricaMov' }
 const BERS = new Set<TipoBersaglioColpo>(['carta', 'mini', 'ferro'])
 
 export const CHIAVE_ARRIVO = 'hf-split-in-arrivo'
 export const CHIAVE_STORICO_SPLIT = 'gda-split-history'
 
 export const NOMI_TIPO: Record<TipoIntervallo, string> = {
-  primo: 'Primo colpo', split: 'Split', transizione: 'Transizione', ricarica: 'Ricarica', movimento: 'Movimento', lungo: 'Da indicare',
+  primo: 'Primo colpo', split: 'Split', transizione: 'Transizione', ricarica: 'Ricarica', movimento: 'Movimento', ricaricaMov: 'Ricarica in movimento', lungo: 'Da indicare',
 }
 
 /** Prima classificazione dai soli tempi: sotto 0,5 s split, sotto 1 s transizione, oltre lo decide il tiratore. */
@@ -92,7 +92,7 @@ export const impronta = (c: Pick<Corsa, 'file' | 'colpi'>) => `${c.file}|${c.col
 
 /* ---------------- abilità misurate ---------------- */
 
-export type Metrica = 'estrazione' | 'primoColpo' | 'split' | 'transizione' | 'ricarica' | 'movimento'
+export type Metrica = 'estrazione' | 'primoColpo' | 'split' | 'transizione' | 'ricarica' | 'movimento' | 'ricaricaMov'
 
 export const METRICHE: { k: Metrica; nome: string; desc: string; profilo?: keyof TempiPersonali }[] = [
   { k: 'estrazione', nome: 'Estrazione', desc: 'Dal beep al primo colpo, da mani in resa e arma in fondina', profilo: 'estrazione' },
@@ -101,6 +101,7 @@ export const METRICHE: { k: Metrica; nome: string; desc: string; profilo?: keyof
   { k: 'transizione', nome: 'Transizione', desc: 'Tra un bersaglio e il successivo, senza spostarti' },
   { k: 'ricarica', nome: 'Ricarica', desc: 'Dall’ultimo colpo al primo dopo il cambio caricatore', profilo: 'ricarica' },
   { k: 'movimento', nome: 'Movimento', desc: 'Dall’ultimo colpo in una posizione al primo nella successiva' },
+  { k: 'ricaricaMov', nome: 'Ricarica in movimento', desc: 'Cambio caricatore mentre ti sposti: dall’ultimo colpo al primo nella nuova posizione' },
 ]
 
 export interface Campione { v: number; data: string; corsaId?: number; d: number | null; bers: TipoBersaglioColpo }
@@ -141,7 +142,7 @@ const devStd = (v: number[]) => {
 
 /** I campioni di ogni abilità, da tutte le run salvate. */
 export function campioni(corse: Corsa[], trova: (id: string) => Drill | undefined): Record<Metrica, Campione[]> {
-  const out: Record<Metrica, Campione[]> = { estrazione: [], primoColpo: [], split: [], transizione: [], ricarica: [], movimento: [] }
+  const out: Record<Metrica, Campione[]> = { estrazione: [], primoColpo: [], split: [], transizione: [], ricarica: [], movimento: [], ricaricaMov: [] }
   for (const c of corse) {
     if (!c.colpi.length) continue
     const d = c.drillId ? trova(c.drillId) : undefined
@@ -170,14 +171,14 @@ export function campioni(corse: Corsa[], trova: (id: string) => Drill | undefine
         return
       }
       const g = t - c.colpi[i - 1]
-      if (tipo === 'split' || tipo === 'transizione' || tipo === 'ricarica' || tipo === 'movimento') metti(tipo, g, i)
+      if (tipo === 'split' || tipo === 'transizione' || tipo === 'ricarica' || tipo === 'movimento' || tipo === 'ricaricaMov') metti(tipo, g, i)
     })
   }
   return out
 }
 
 /** Le ricariche e i movimenti non dipendono dal bersaglio: per loro conta tutto. */
-const SENZA_FASCE = new Set<Metrica>(['ricarica', 'movimento'])
+const SENZA_FASCE = new Set<Metrica>(['ricarica', 'movimento', 'ricaricaMov'])
 
 export function statistiche(camp: Record<Metrica, Campione[]>, oggi = new Date()): StatMetrica[] {
   const giorno = 86_400_000

@@ -1,7 +1,10 @@
-import { RotateCcw, Save } from 'lucide-react'
+import { Clapperboard, RefreshCw, RotateCcw, Save } from 'lucide-react'
+import { Link } from 'react-router-dom'
 import { useEffect, useState } from 'react'
 import { SezioneObiettivi } from '../components/Obiettivi'
 import { QuestionarioAbilita, RiepilogoAbilita } from '../components/Abilita'
+import { proposteDaVideo } from '../components/AbilitaMisurate'
+import { useAbilita } from '../video/useAbilita'
 import { numOrNull, PageHeader, Segmented, useToast } from '../components/ui'
 import { db, normalizzaProfilo, nowIso } from '../db/db'
 import {
@@ -40,6 +43,7 @@ export default function Profilo() {
   const [testi, setTesti] = useState<Record<string, string>>({})
   const [sporco, setSporco] = useState(false)
   const [questionario, setQuestionario] = useState(false)
+  const abilitaVideo = useAbilita()
 
   useEffect(() => {
     db.profilo.get('me').then((x) => {
@@ -162,6 +166,43 @@ export default function Profilo() {
       </section>
 
       <RiepilogoAbilita abilita={p.abilita} storico={p.storicoAbilita} onQuestionario={() => setQuestionario(true)} />
+      {abilitaVideo && (() => {
+        const prop = proposteDaVideo(abilitaVideo, p)
+        async function aggiornaDaVideo() {
+          const np = { ...p!, tempi: { ...p!.tempi, ...prop.tempi }, ...(prop.pendenza != null ? { pendenzaDistanza: prop.pendenza } : {}) }
+          setP(np)
+          setTesti(testiDa(np))
+          const attuale = await db.profilo.get('me')
+          await db.profilo.put({ ...np, obiettivi: attuale?.obiettivi ?? np.obiettivi, aggiornato: nowIso() })
+          setSporco(false)
+          toast(`Aggiornati dai video: ${prop.voci.join(', ')}`)
+        }
+        return (
+          <section className="card">
+            <div className="card-title"><span><Clapperboard size={18} style={{ verticalAlign: -3 }} /> Abilità dai video</span><Link to="/video">{abilitaVideo.run} run</Link></div>
+            {prop.righe.length === 0 ? (
+              <p className="prose" style={{ margin: 0, fontSize: 13 }}>
+                Servono almeno 5 misure su carta fino a 8 m per un’abilità: salva le run da GDA Split in <Link to="/video">Video</Link> e qui potrai aggiornare i tuoi tempi con un tocco.
+              </p>
+            ) : (
+              <>
+                <div className="tempo-confronto">
+                  {prop.righe.map((r) => (
+                    <div key={r.nome} className="tempo-row">
+                      <div><span className="n">{r.nome}</span><div className="d">profilo {f2(r.profilo)} s</div></div>
+                      <b style={{ color: Math.abs(r.video - r.profilo) < 0.02 ? 'var(--text)' : r.video < r.profilo ? 'var(--ok)' : 'var(--accent)' }}>{f2(r.video)} s</b>
+                    </div>
+                  ))}
+                </div>
+                <div className="row" style={{ marginTop: 10 }}>
+                  <button className="btn primary" disabled={!prop.voci.length} onClick={aggiornaDaVideo}><RefreshCw size={18} /> Aggiorna</button>
+                  <span className="meta">{prop.voci.length ? `Cambiano: ${prop.voci.join(', ')}` : 'I tempi del profilo sono già allineati ai video.'}</span>
+                </div>
+              </>
+            )}
+          </section>
+        )
+      })()}
 
       <section className="card form">
         <div className="card-title" style={{ marginBottom: 0 }}>Arma principale</div>

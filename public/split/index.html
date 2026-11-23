@@ -1810,7 +1810,7 @@ function drawTag(){
   const s=tagShot;if(!s)return;const r=rows().find(x=>Math.abs(x.abs-s.t)<0.006);
   $('tagT').textContent='Colpo '+(r?r.n+(r.n===1?' · estrazione '+r.split.toFixed(2)+' s':' · +'+r.split.toFixed(2)+' s'):'');
   $('tagTipoF').style.display=r&&r.n===1?'none':'';
-  chipsHtml($('tagTipo'),[['','Automatico'],['Split','Split'],['Transizione','Transizione'],['Ricarica','Ricarica'],['Movimento','Movimento']],s.tag||'','tipo');
+  chipsHtml($('tagTipo'),[['','Automatico'],['Split','Split'],['Transizione','Transizione'],['Ricarica','Ricarica'],['Movimento','Movimento'],['Ricarica in movimento','Ricarica in mov.']],s.tag||'','tipo');
   chipsHtml($('tagBers'),[['','Carta'],['mini','Mini'],['ferro','Ferro']],s.bers||'','bers');
   chipsHtml($('tagDist'),[['','Tipica']].concat(DIST_RAPIDE.map(d=>[d,d])),DIST_RAPIDE.includes(s.dist)?s.dist:(s.dist?'x':''),'dist');
   $('tagDistIn').value=s.dist&&!DIST_RAPIDE.includes(s.dist)?String(s.dist):'';
