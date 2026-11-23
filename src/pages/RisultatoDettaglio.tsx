@@ -15,7 +15,8 @@ import type { StageLetto } from '../analisi/tipi'
 import DiarioCollegato from '../components/DiarioCollegato'
 import { descriviCampo, punteggioReale } from '../risultati/reale'
 import { armaDiGara } from '../statistiche/filtri'
-import { inAltreDivisioni, analizza, avversariVicini, colpiStage, confronto, indicazioni, nomeLeggibile, trovaPerNome, type Analisi, type RisultatoGara } from '../risultati/motore'
+import { inAltreDivisioni, analizza, avversariVicini, colpiStage, confronto, controRiferimento, indicazioni, nomeLeggibile, trovaPerNome, type Analisi, type RisultatoGara, type StageConc } from '../risultati/motore'
+import { Crosshair } from 'lucide-react'
 import { getImp, setImp } from '../db/db'
 import { Star } from 'lucide-react'
 
@@ -76,7 +77,7 @@ export default function RisultatoDettaglio() {
       <section className="hero">
         <div className="kicker">Classifica {r.divisione}</div>
         <div className="countdown" style={{ marginTop: 6 }}>
-          <span className="n">{a.base.pos}°</span><span className="u">su {a.totale}</span>
+          <span className="n">{a.base.pos}°</span><span className="u">su {a.totale}{r.fonte === 'screenshot' ? '+' : ''}</span>
           <span className="spacer" />
           <span className="badge" style={{ fontSize: 14 }}>{f2(a.base.pct)}%</span>
         </div>
@@ -86,6 +87,11 @@ export default function RisultatoDettaglio() {
         </div>
       </section>
 
+      {r.fonte === 'screenshot' && (
+        <p className="prose" style={{ margin: 0, fontSize: 13 }}>
+          Dagli screenshot di PractiScore: conosco i tiratori visibili nelle tabelle. Per avere tutti, scorri la tabella e carica anche gli screenshot successivi.
+        </p>
+      )}
       {!r.conVerify && (
         <div className="card avviso">Senza gli statini (Score Verification) non conosco A, C, D e mancati: carica anche quel PDF per l’analisi degli errori.</div>
       )}
@@ -102,6 +108,7 @@ export default function RisultatoDettaglio() {
           </select>
         </div>
       )}
+      {vista === 'riepilogo' && <Riferimento r={r} />}
       {vista === 'riepilogo' && <PunteggioReale r={r} pct={a.base.pct} />}
       {vista === 'riepilogo' && <Riepilogo a={a} r={r} />}
       {vista === 'riepilogo' && <AltreDivisioni r={r} />}
@@ -268,6 +275,9 @@ type Libretto = { id: number; stages: StageLetto[]; pdf: Blob | null }
 
 function Stage({ a, r, libretto }: { a: Analisi; r: RisultatoGara; libretto: Libretto | null }) {
   const [ordine, setOrdine] = useState<'numero' | 'costo'>('costo')
+  const nomeRif = useLiveQuery(() => getImp<string>('riferimento', '')) ?? ''
+  const rif = nomeRif ? trovaPerNome(r, nomeRif) : undefined
+  const cr = rif && rif.num !== r.mioNum ? controRiferimento(r, rif.num) : null
   const [verifica, setVerifica] = useState(false)
   const ab = libretto && r.abbinamento?.analisiId === libretto.id ? r.abbinamento : null
   const reale = useMemo(() => punteggioReale(r), [r])
@@ -338,6 +348,16 @@ function Stage({ a, r, libretto }: { a: Analisi; r: RisultatoGara; libretto: Lib
                     <b style={{ color: 'var(--text)' }}>Libretto: stage {st.numero}</b>{ab!.incerti.includes(x.n) && !ab!.manuale ? <span style={{ color: 'var(--accent)' }}> (da verificare)</span> : ''}{' · '}
                     {[met ? `${met} metalli` : '', st.bersagli.noShoot ? `${st.bersagli.noShoot} no-shoot` : '', st.flag.mobili ? 'attivazioni' : '', st.flag.manoDebole ? 'mano debole' : st.flag.manoForte ? 'mano forte' : ''].filter(Boolean).join(' · ') || 'solo carta'}
                     {' · '}<Link to={`/analisi-gara/${libretto!.id}/stage/${st.numero}`}>studio dello stage</Link>
+                  </div>
+                )
+              })()}
+              {(() => {
+                const x2 = cr?.stages.find((z) => z.n === x.n)
+                if (!cr || !x2?.suo) return null
+                return (
+                  <div className="meta" style={{ marginTop: 4 }}>
+                    <Crosshair size={12} style={{ verticalAlign: -1 }} /> <b style={{ color: 'var(--text)' }}>{nomeBreve(cr.o.nome)}:</b> {statino(x2.suo)} · HF {f2(x2.suo.hf)}
+                    {x2.hfPct != null && <> → sei al <b style={{ color: x2.hfPct >= 100 ? 'var(--ok)' : 'var(--fuoco)' }}>{f1(x2.hfPct)}%</b></>}
                   </div>
                 )
               })()}
@@ -524,5 +544,96 @@ function Allenamento({ a, r }: { a: Analisi; r: RisultatoGara }) {
         {evento?.completato && <p className="prose" style={{ margin: 0, fontSize: 13 }}>Gara segnata come disputata: i colpi contano per munizioni e arma.</p>}
       </section>
     </>
+  )
+}
+
+/** "18A 3C 1D 1M · 18,99 s · 100 pt" */
+function statino(s: StageConc) {
+  const c = s.A !== undefined ? [`${s.A}A`, `${s.C}C`, s.D ? `${s.D}D` : '', s.MI ? `${s.MI}M` : '', s.NS ? `${s.NS}NS` : '', s.PE ? `${s.PE}P` : ''].filter(Boolean).join(' ') + ' · ' : ''
+  return `${c}${f2(s.tempo)} s · ${s.pts} pt`
+}
+
+/** Il tiratore di riferimento: un metro costante, gara dopo gara. */
+function Riferimento({ r }: { r: RisultatoGara }) {
+  const nome = useLiveQuery(() => getImp<string>('riferimento', ''))
+  const rivali = useLiveQuery(() => getImp<string[]>('rivali', [])) ?? []
+  const [cerca, setCerca] = useState('')
+  if (nome === undefined) return null
+  const o = nome ? trovaPerNome(r, nome) : undefined
+  if (!o || o.num === r.mioNum) {
+    const altri = r.concorrenti.filter((c) => c.num !== r.mioNum)
+    const trovato = cerca.trim() ? altri.find((c) => nomeLeggibile(c.nome).toLowerCase() === cerca.trim().toLowerCase()) ?? trovaPerNome({ ...r, concorrenti: altri }, cerca) : undefined
+    return (
+      <section className="card form">
+        <div className="card-title" style={{ marginBottom: 0 }}><span><Crosshair size={18} style={{ verticalAlign: -3 }} /> Il tuo riferimento</span></div>
+        <p className="prose" style={{ margin: 0, fontSize: 13 }}>
+          {nome ? `${nome} non era in questa gara (${r.divisione}).` : 'Scegli un tiratore costante da usare come metro: ti confronto con lui stage per stage, in ogni gara.'}
+          {nome ? ' Puoi sceglierne un altro.' : ''}
+        </p>
+        <div className="row">
+          <input className="input" style={{ flex: 1 }} list="rif-tiratori" placeholder="Nome e cognome" aria-label="Tiratore di riferimento" value={cerca} onChange={(e) => setCerca(e.target.value)} />
+          <datalist id="rif-tiratori">{altri.map((c) => <option key={c.num} value={nomeLeggibile(c.nome)}>{c.pos}° {c.cls}</option>)}</datalist>
+          <button className="btn primary" disabled={!trovato} onClick={async () => {
+            if (!trovato) return
+            const n = nomeLeggibile(trovato.nome)
+            await setImp('rivali', [...new Set([...rivali, n])])
+            await setImp('riferimento', n)
+            setCerca('')
+          }}><Crosshair size={16} /> Usa</button>
+        </div>
+      </section>
+    )
+  }
+  const c = controRiferimento(r, o.num)
+  const nb = nomeBreve(o.nome)
+  const gPunti = c.conSuoiPunti ? c.conSuoiPunti.punti - r.concorrenti.find((x) => x.num === r.mioNum)!.punti : 0
+  const gTempi = c.conSuoiTempi ? c.conSuoiTempi.punti - r.concorrenti.find((x) => x.num === r.mioNum)!.punti : 0
+  return (
+    <section className="card">
+      <div className="card-title">
+        <span><Crosshair size={18} style={{ verticalAlign: -3 }} /> Contro {nb}</span>
+        <span className="badge" style={{ fontSize: 15, color: c.indice >= 100 ? 'var(--ok)' : 'var(--accent)' }}>{f1(c.indice)}%</span>
+      </div>
+      <p className="prose" style={{ margin: 0 }}>
+        {c.diff >= 0 ? <>Gli stai davanti di <b>{f1(c.diff)}</b> punti gara</> : <>Ti sta davanti di <b>{f1(-c.diff)}</b> punti gara</>}
+        {c.completo ? <>: sei {c.dTempo <= 0 ? <><b>{f2(-c.dTempo)} s più veloce</b></> : <><b>{f2(c.dTempo)} s più lento</b></>} in totale
+          e hai fatto <b>{c.dPts >= 0 ? `${c.dPts} punti in più` : `${-c.dPts} punti in meno`}</b>.</> : '.'}
+        {c.mio && c.suo && <> Colpi in A: {pc(c.mio.aPct)} contro {pc(c.suo.aPct)}; mancati e no-shoot: {c.mio.mancati} contro {c.suo.mancati}.</>}
+      </p>
+      {c.conSuoiPunti && c.conSuoiTempi && (
+        <div className="list" style={{ marginTop: 10 }}>
+          <div className="item" style={{ display: 'block' }}>
+            <div className="title">Con i suoi punti e i tuoi tempi</div>
+            <div className="meta">{f1(c.conSuoiPunti.punti)} punti · {c.conSuoiPunti.pos}° ({gPunti >= 0 ? '+' : ''}{f1(gPunti)})</div>
+          </div>
+          <div className="item" style={{ display: 'block' }}>
+            <div className="title">Con i suoi tempi e i tuoi punti</div>
+            <div className="meta">{f1(c.conSuoiTempi.punti)} punti · {c.conSuoiTempi.pos}° ({gTempi >= 0 ? '+' : ''}{f1(gTempi)})</div>
+          </div>
+        </div>
+      )}
+      {c.conSuoiPunti && c.conSuoiTempi && (gPunti > 1 || gTempi > 1) && (
+        <p className="prose" style={{ margin: '10px 0 0' }}>
+          {gPunti >= gTempi
+            ? <>Da lui ti separa soprattutto la <b>precisione</b>: il tempo ce l’hai già.</>
+            : <>Da lui ti separa soprattutto la <b>velocità</b>: i punti sono già in linea.</>}
+        </p>
+      )}
+      <div className="card-title" style={{ marginTop: 14, marginBottom: 6, fontSize: 14 }}>Statino stage per stage</div>
+      <div className="list">
+        {c.stages.map((x) => (
+          <div key={x.n} className="item" style={{ display: 'block' }}>
+            <div className="row">
+              <div className="title" style={{ flex: 1 }}>Stage {x.n}</div>
+              {x.hfPct != null && <b style={{ color: x.hfPct >= 100 ? 'var(--ok)' : 'var(--fuoco)' }}>{f1(x.hfPct)}%</b>}
+              <span className="meta" style={{ marginLeft: 8 }}>{x.dStage >= 0 ? '+' : ''}{f1(x.dStage)}</span>
+            </div>
+            <div className="meta">Tu: {x.mio ? statino(x.mio) : '—'}</div>
+            <div className="meta">{nb.split(' ')[0]}: {x.suo ? statino(x.suo) : 'non visibile'}</div>
+          </div>
+        ))}
+      </div>
+      <p className="prose" style={{ margin: '8px 0 0', fontSize: 12.5 }}>La percentuale è il tuo hit factor sul suo; a destra i punti gara guadagnati o persi nello stage.</p>
+    </section>
   )
 }

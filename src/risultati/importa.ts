@@ -3,7 +3,7 @@ import type { PaginaPdf } from '../analisi/tipi'
 import { leggiRisultati, tipoPdf, type LetturaRisultati } from './parser'
 import { dataStampa } from './motore'
 
-export interface LetturaFile { lettura: LetturaRisultati; data: string | null; scartati: string[] }
+export interface LetturaFile { lettura: LetturaRisultati; data: string | null; scartati: string[]; /** da screenshot di PractiScore */ schermate?: boolean }
 
 /**
  * Legge i PDF dei risultati (Overall, Stage Results, Score Verification).

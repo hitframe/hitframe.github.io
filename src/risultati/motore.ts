@@ -43,6 +43,8 @@ export interface RisultatoGara {
   abbinamento?: { analisiId: number; mappa: Record<number, number>; incerti: number[]; manuale: boolean }
   /** Arma usata in questa gara (se non indicata, si deduce dalla data "dal" delle armi) */
   armaId?: number | null
+  /** Da dove arrivano i dati: PDF completi o screenshot di PractiScore (solo i tiratori visibili) */
+  fonte?: 'pdf' | 'screenshot'
 }
 
 const MESI: Record<string, string> = { gen: '01', feb: '02', mar: '03', apr: '04', mag: '05', giu: '06', lug: '07', ago: '08', set: '09', ott: '10', nov: '11', dic: '12', jan: '01', may: '05', jun: '06', jul: '07', aug: '08', sep: '09', oct: '10', dec: '12' }
@@ -133,6 +135,24 @@ export function costruisciRisultato(l: LetturaRisultati, divisione: string, mioN
     creato: new Date().toISOString(), gara: l.gara || 'Gara', data, eventoId: null, divisione, mioNum,
     valoreStage, concorrenti: lista, conVerify: lista.some((c) => Object.values(c.stages).some((s) => s.A !== undefined)),
   }
+}
+
+/**
+ * Risultato da screenshot: negli stage si vedono solo i primi della tabella, quindi i totali
+ * vengono dalla classifica generale (Match) quando c'è; chi non è visibile ovunque resta in coda.
+ */
+export function sistemaDaSchermate(r: RisultatoGara, l: LetturaRisultati): RisultatoGara {
+  const ov = new Map((l.overall[r.divisione] ?? []).map((o) => [o.nome, o]))
+  if (ov.size) {
+    for (const c of r.concorrenti) { const o = ov.get(c.nome); if (o) c.punti = o.punti }
+    const conOv = r.concorrenti.filter((c) => ov.has(c.nome)).sort((a, b) => ov.get(a.nome)!.pos - ov.get(b.nome)!.pos)
+    const senza = r.concorrenti.filter((c) => !ov.has(c.nome)).sort((a, b) => b.punti - a.punti)
+    r.concorrenti = [...conOv, ...senza]
+    const max = conOv[0]?.punti || 1
+    r.concorrenti.forEach((c, i) => { c.pos = i + 1; c.pct = ov.get(c.nome)?.pct ?? (c.punti / max) * 100 })
+  }
+  r.fonte = 'screenshot'
+  return r
 }
 
 /* ---------- Ricalcolo con scenari ---------- */
@@ -297,6 +317,47 @@ export function confronto(r: RisultatoGara, num: number) {
     mio: me.stages[n], suo: o.stages[n],
   }))
   return { o, diff: me.punti - o.punti, perStage }
+}
+
+/**
+ * Confronto con il tiratore di riferimento (uno costante, che usi come metro gara dopo gara):
+ * statino stage per stage, dove sta la differenza (tempo o punti) e cosa valgono i suoi numeri sui tuoi.
+ */
+export function controRiferimento(r: RisultatoGara, num: number) {
+  const me = r.concorrenti.find((c) => c.num === r.mioNum)!
+  const o = r.concorrenti.find((c) => c.num === num)!
+  const nStages = Object.keys(r.valoreStage).map(Number).sort((a, b) => a - b)
+  const stages = nStages.map((n) => {
+    const mio = me.stages[n], suo = o.stages[n]
+    return {
+      n, mio, suo,
+      hfPct: mio && suo && suo.hf > 0 ? (mio.hf / suo.hf) * 100 : null,
+      dTempo: mio && suo ? mio.tempo - suo.tempo : null,
+      dPts: mio && suo ? mio.pts - suo.pts : null,
+      dStage: (mio?.puntiStage ?? 0) - (suo?.puntiStage ?? 0),
+    }
+  })
+  const comuni = stages.filter((x) => x.mio && x.suo)
+  const somma = (f: (x: (typeof stages)[number]) => number) => comuni.reduce((a, x) => a + f(x), 0)
+  const colpi = (c: Concorrente) => {
+    const st = comuni.map((x) => c.stages[x.n]).filter((s) => s?.A !== undefined)
+    const tot = st.reduce((a, s) => a + colpiStage(s), 0)
+    return tot ? { aPct: st.reduce((a, s) => a + (s.A ?? 0), 0) / tot, mancati: st.reduce((a, s) => a + (s.MI ?? 0) + (s.NS ?? 0), 0) } : null
+  }
+  // scenari: i suoi punti con i tuoi tempi, i suoi tempi con i tuoi punti
+  const ovPunti: Override = {}, ovTempi: Override = {}
+  for (const x of comuni) { ovPunti[x.n] = { pts: x.suo!.pts }; ovTempi[x.n] = { tempo: x.suo!.tempo } }
+  return {
+    o, stages,
+    indice: o.punti ? (me.punti / o.punti) * 100 : 0,
+    diff: me.punti - o.punti,
+    dTempo: somma((x) => x.dTempo!),
+    dPts: somma((x) => x.dPts!),
+    mio: colpi(me), suo: colpi(o),
+    conSuoiPunti: comuni.length ? ricalcola(r, r.mioNum, ovPunti) : null,
+    conSuoiTempi: comuni.length ? ricalcola(r, r.mioNum, ovTempi) : null,
+    completo: comuni.length === nStages.length,
+  }
 }
 
 /* ---------- Da portare in allenamento ---------- */
