@@ -225,7 +225,7 @@ function etichettaSezione(info: InfoGara, i: number): string {
   if (hg && pcc) return 'Handgun / PCC'
   if (pcc) return 'PCC'
   if (hg) return 'Handgun'
-  return `Libretto ${i + 1}`
+  return `Locandina ${i + 1}`
 }
 
 function leggiSezione(pagine: PaginaPdf[], trovati: Omit<StageLetto, 'numero'>[]): SezioneGara {
@@ -290,7 +290,7 @@ export function leggiGara(pagine: PaginaPdf[]): GaraLetta {
       return sez
     })
   const avvisi: string[] = []
-  if (!sezioni.length) avvisi.push('Non ho trovato stage in un formato che conosco (libretto FITDS/IPSC o libretto da club con "Stage N … COURSE").')
-  if (sezioni.length > 1) avvisi.push(`Il PDF contiene ${sezioni.length} libretti (${sezioni.map((s) => s.etichetta).join(', ')}).`)
+  if (!sezioni.length) avvisi.push('Non ho trovato stage in un formato che conosco (locandina FITDS/IPSC o locandina da club con "Stage N … COURSE").')
+  if (sezioni.length > 1) avvisi.push(`Il PDF contiene ${sezioni.length} locandine (${sezioni.map((s) => s.etichetta).join(', ')}).`)
   return { sezioni, avvisi, pagineTotali: pagine.length }
 }

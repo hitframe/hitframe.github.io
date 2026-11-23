@@ -98,7 +98,7 @@ export default function ChatAI() {
             {storia.length === 0 && (
               <div className="chat-vuota">
                 <p>Chiedimi qualcosa sui tuoi dati. Per esempio:</p>
-                {['Su cosa dovrei lavorare questo mese?', 'Perché nell’ultima gara ho perso più punti?', 'Sono in linea con l’obiettivo Master?', 'Che drill mi consigli per i mancati?'].map((d) => (
+                {['Su cosa dovrei lavorare questo mese?', 'Perché nell’ultima gara ho perso più punti?', 'Sono in linea con l’obiettivo Master?', 'Che drill mi consigli per i miss?'].map((d) => (
                   <button key={d} className="chip" onClick={() => setTesto(d)}>{d}</button>
                 ))}
               </div>

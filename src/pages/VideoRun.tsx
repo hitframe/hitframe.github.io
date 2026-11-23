@@ -188,7 +188,7 @@ function VideoRun({ id }: { id?: string }) {
             </label>
             {mioStage && (
               <p className="prose" style={{ margin: 0, fontSize: 13 }}>
-                Dallo statino: {f2(mioStage.tempo)} s, HF {mioStage.hf.toFixed(4).replace('.', ',')}.
+                Dal Verify: {f2(mioStage.tempo)} s, HF {mioStage.hf.toFixed(4).replace('.', ',')}.
                 {c.tempoTimer == null && <> <button type="button" className="btn ghost" onClick={() => set('tempoTimer', mioStage.tempo)}>Usa il tempo ufficiale</button></>}
               </p>
             )}

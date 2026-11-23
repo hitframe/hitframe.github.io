@@ -104,7 +104,7 @@ function valutaMedia(o: Obiettivo, d: DatiAtleta, campo: 'pct' | 'reale'): Valut
     : `Ti mancano ${f1(distanza)}${unita} di media per entrare nella fascia`
 
   if (campo === 'pct' && costoPct > 0.5) {
-    if (!sopra && costoPct >= distanza) azioni.push(`Gli errori (mancati, no-shoot, procedure) ti costano in media ${f1(costoPct)}% a gara: da soli bastano a colmare la distanza. Priorità: drill di conferma della mira e lettura dello stage.`)
+    if (!sopra && costoPct >= distanza) azioni.push(`Gli errori (miss, no-shoot, procedure) ti costano in media ${f1(costoPct)}% a gara: da soli bastano a colmare la distanza. Priorità: drill di conferma della mira e lettura dello stage.`)
     else azioni.push(`Gli errori ti costano in media ${f1(costoPct)}% a gara: ridurli è il guadagno più veloce.`)
   }
   if (sd > 6) azioni.push(`Risultati molto variabili (±${f1(sd)}${unita}): lavora sulla costanza con routine pre-gara fissa e la sezione Mente.`)
@@ -181,7 +181,7 @@ export function tappeSuggerite(o: Pick<Obiettivo, 'tipo' | 'titolo' | 'classe'>)
     ]
   }
   if (o.tipo === 'media' || o.classe) {
-    return ['Partecipare ad almeno 6 gare valide nell’anno', 'Ridurre i mancati sotto 1 ogni 100 colpi', 'Routine pre-gara fissa in tutte le gare']
+    return ['Partecipare ad almeno 6 gare valide nell’anno', 'Ridurre i miss sotto 1 ogni 100 colpi', 'Routine pre-gara fissa in tutte le gare']
   }
   return []
 }

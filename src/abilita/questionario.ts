@@ -72,7 +72,7 @@ export const DOMANDE: Domanda[] = [
   },
   {
     area: 'parziali', titolo: 'Bersagli coperti',
-    testo: 'Bersagli coperti al 50% da no-shoot a 10 m: ogni 10 doppiette, quante penalità (NS o mancati)?',
+    testo: 'Bersagli coperti al 50% da no-shoot a 10 m: ogni 10 doppiette, quante penalità (NS o miss)?',
     opzioni: [
       { testo: '3 o più', livello: 1 },
       { testo: '2', livello: 2 },

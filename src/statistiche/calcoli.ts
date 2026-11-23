@@ -108,8 +108,8 @@ export function puntiForzaDebolezza(p: PuntoGara[]): Giudizio[] {
   else if (gapA < 0) out.push({ tipo: 'forte', titolo: 'Zone A', testo: `Precisione in A pari o migliore dei primi 10 (${Math.round(m((x) => x.aPct) * 100)}%).` })
   const mi = m((x) => x.mancati100), mi10 = m((x) => x.mancati100Top10)
   const costo = p.reduce((a, x) => a + x.costoErrori, 0)
-  if (mi > mi10 * 1.2 && mi > 0.8) out.push({ tipo: 'debole', titolo: 'Mancati', testo: `${mi.toFixed(1).replace('.', ',')} mancati ogni 100 colpi contro ${mi10.toFixed(1).replace('.', ',')} dei primi 10. In ${n} gare ti sono costati ${costo.toFixed(0)} punti gara.` })
-  else if (mi <= mi10) out.push({ tipo: 'forte', titolo: 'Mancati', testo: `Mancati sotto la media dei primi 10 (${mi.toFixed(1).replace('.', ',')} ogni 100 colpi).` })
+  if (mi > mi10 * 1.2 && mi > 0.8) out.push({ tipo: 'debole', titolo: 'Miss', testo: `${mi.toFixed(1).replace('.', ',')} miss ogni 100 colpi contro ${mi10.toFixed(1).replace('.', ',')} dei primi 10. In ${n} gare ti sono costati ${costo.toFixed(0)} punti gara.` })
+  else if (mi <= mi10) out.push({ tipo: 'forte', titolo: 'Miss', testo: `Miss sotto la media dei primi 10 (${mi.toFixed(1).replace('.', ',')} ogni 100 colpi).` })
   // Tendenze nel tempo
   if (n >= 3) {
     const pr = pendenza(p.map((x) => x.reale))
@@ -117,7 +117,7 @@ export function puntiForzaDebolezza(p: PuntoGara[]): Giudizio[] {
     else if (pr < -0.5) out.push({ tipo: 'debole', titolo: 'Livello in calo', testo: `Il punteggio reale scende di circa ${(-pr).toFixed(1).replace('.', ',')} a gara, al netto della forza del campo.` })
     const pa = pendenza(p.map((x) => x.aPct)), pt = pendenza(p.map((x) => x.tempoRel)), pm = pendenza(p.map((x) => x.mancati100))
     if (pa > 0.01) out.push({ tipo: 'forte', titolo: 'Precisione in crescita', testo: `Le A salgono di circa ${Math.round(pa * 100)} punti a gara: dal ${Math.round(p[0].aPct * 100)}% al ${Math.round(p[n - 1].aPct * 100)}%.` })
-    if (pm < -0.15) out.push({ tipo: 'forte', titolo: 'Meno mancati', testo: `Da ${p[0].mancati100.toFixed(1).replace('.', ',')} a ${p[n - 1].mancati100.toFixed(1).replace('.', ',')} mancati ogni 100 colpi.` })
+    if (pm < -0.15) out.push({ tipo: 'forte', titolo: 'Meno miss', testo: `Da ${p[0].mancati100.toFixed(1).replace('.', ',')} a ${p[n - 1].mancati100.toFixed(1).replace('.', ',')} miss ogni 100 colpi.` })
     if (pt > 0.02 && pa > 0) out.push({ tipo: 'debole', titolo: 'Velocità in calo', testo: `Stai guadagnando precisione ma perdi tempo: dal ${Math.round(p[0].tempoRel * 100)} al ${Math.round(p[n - 1].tempoRel * 100)} rispetto ai primi 10 (100 = loro media). Ora che le A tengono, rialza il ritmo.` })
     else if (pt > 0.02) out.push({ tipo: 'debole', titolo: 'Velocità in calo', testo: `Tempo relativo ai primi 10 in aumento gara dopo gara.` })
   }

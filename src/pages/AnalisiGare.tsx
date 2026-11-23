@@ -33,7 +33,7 @@ export default function AnalisiGare() {
 
   return (
     <div className="page">
-      <PageHeader title="Analisi gara" sub="Carica il PDF della gara: Hitframe legge gli stage e prepara il tuo piano" />
+      <PageHeader title="Analisi gara" sub="Carica la locandina della gara (PDF): Hitframe legge gli stage e prepara il tuo piano" />
 
       <div
         className={`dropzone${trascina ? ' over' : ''}`}

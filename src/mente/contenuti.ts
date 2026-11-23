@@ -85,7 +85,7 @@ export const ESERCIZI: Esercizio[] = [
     ],
   },
   {
-    id: 'reset', titolo: 'Reset dopo l’errore', durata: '30 s', quando: 'Dopo un mancato, una procedura o uno stage andato male',
+    id: 'reset', titolo: 'Reset dopo l’errore', durata: '30 s', quando: 'Dopo un miss, una procedura o uno stage andato male',
     perche: 'L’errore costa una volta; ripensarci lo fa costare in ogni stage dopo. Il reset lo chiude.',
     fasi: [
       { testo: 'Riconosci: “È successo.” Senza giudicarti.', secondi: 6 },

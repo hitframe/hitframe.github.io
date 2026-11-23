@@ -13,7 +13,7 @@ import type { EsitoOcr } from '../risultati/ocr'
 import { getImp, setImp } from '../db/db'
 import { Plus, Star, X } from 'lucide-react'
 
-const TIPI = { overall: 'Classifica generale', stage: 'Classifiche degli stage', verify: 'Statini (Score Verification)' }
+const TIPI = { overall: 'Classifica generale', stage: 'Classifiche degli stage', verify: 'Verify (Score Verification)' }
 
 export default function Risultati() {
   const toast = useToast()
@@ -129,7 +129,7 @@ export default function Risultati() {
       <PageHeader title="Risultati" sub="Classifiche, errori, avversari e cosa allenare" />
       <section className="card form">
         <p className="prose" style={{ margin: 0 }}>
-          Carica insieme i PDF dei risultati, anche di più gare in una volta: <b>classifica generale</b> (Overall), <b>classifiche degli stage</b> (Stage Results) e <b>statini</b> (Score Verification).
+          Carica insieme i PDF dei risultati, anche di più gare in una volta: <b>classifica generale</b> (Overall), <b>classifiche degli stage</b> (Stage Results) e <b>Verify</b> (Score Verification).
           Oppure gli <b>screenshot di PractiScore</b>: la pagina Match e quella di ogni stage, con la tabella fino alle colonne A, C, D, M.
           Ti trovo dal nome del profilo e calcolo dove hai perso punti e quanto pesa ogni errore.
         </p>
@@ -204,7 +204,7 @@ function Rivali({ risultati }: { risultati: RisultatoGara[] }) {
       <div className="card-title" style={{ marginBottom: 0 }}><span><Star size={18} style={{ verticalAlign: -3 }} /> Avversari che segui</span></div>
       <p className="prose" style={{ margin: 0, fontSize: 13 }}>
         Scrivi i nomi con cui vuoi il confronto diretto: li ritrovo in ogni gara importata, nella sezione Avversari.
-        Con il mirino scegli il tuo <b>riferimento</b>: un tiratore costante che usi come metro, gara dopo gara, con lo statino stage per stage.
+        Con il mirino scegli il tuo <b>riferimento</b>: un tiratore costante che usi come metro, gara dopo gara, con il Verify stage per stage.
       </p>
       <div className="row">
         <input className="input" style={{ flex: 1 }} list="nomi-rivali" placeholder="Nome e cognome" aria-label="Nome avversario" value={nome} onChange={(e) => setNome(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && aggiungi()} />

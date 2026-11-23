@@ -90,7 +90,7 @@ export const ISTRUZIONI: Record<string, Istruzioni> = {
   },
   parziali: {
     allestimento: 'Due bersagli IPSC a 10 m, ciascuno coperto per metà da un no-shoot.',
-    passi: ['Mani in resa, arma in fondina.', 'Al beep due colpi su T1 e due su T2.', 'Conta solo le A: un no-shoot o un mancato annulla la prova.'],
+    passi: ['Mani in resa, arma in fondina.', 'Al beep due colpi su T1 e due su T2.', 'Conta solo le A: un no-shoot o un miss annulla la prova.'],
     attenzione: ['Mira sulla parte libera della zona A, lontano dal bordo del no-shoot.', 'Rallenta quanto basta: qui la penalità costa più del tempo.'],
     schema: { elementi: [tiratore(), T(-1.2, 10, 'T1'), { t: 'noshoot', x: -0.85, y: 9.8 }, T(1.2, 10, 'T2'), { t: 'noshoot', x: 0.85, y: 9.8 }] },
   },

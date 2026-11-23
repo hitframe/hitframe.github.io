@@ -47,8 +47,8 @@ export default function Gare() {
           {g.gara?.iscritto ? <span className="badge" style={{ color: 'var(--ok)' }}><Check size={12} /> iscritto</span> : futura ? (
             <a href={linkIscrizione(g.gara?.iscrizioneUrl)} target="_blank" rel="noreferrer" className="badge" style={{ color: 'var(--accent)', padding: '6px 10px' }}><ExternalLink size={12} /> Iscriviti su MA.RE.</a>
           ) : null}
-          {an ? <Link to={`/analisi-gara/${an.id}`} className="badge" style={{ padding: '6px 10px' }}><FileSearch size={12} /> Libretto e studio</Link>
-            : <Link to="/analisi-gara" className="badge" style={{ padding: '6px 10px' }}><Plus size={12} /> Carica il libretto</Link>}
+          {an ? <Link to={`/analisi-gara/${an.id}`} className="badge" style={{ padding: '6px 10px' }}><FileSearch size={12} /> Locandina e studio</Link>
+            : <Link to="/analisi-gara" className="badge" style={{ padding: '6px 10px' }}><Plus size={12} /> Carica la locandina</Link>}
           {ri ? <Link to={`/risultati/${ri.id}`} className="badge" style={{ padding: '6px 10px', color: 'var(--accent)' }}><Medal size={12} /> {me ? `${me.pos}° · ${me.pct.toFixed(1).replace('.', ',')}%` : 'Risultati'}</Link>
             : !futura ? <Link to="/risultati" className="badge" style={{ padding: '6px 10px' }}><Plus size={12} /> Carica i risultati</Link> : null}
         </div>
@@ -58,13 +58,13 @@ export default function Gare() {
 
   return (
     <div className="page">
-      <PageHeader title="Le mie gare" sub="Prima della gara il libretto e lo studio, dopo i risultati"
+      <PageHeader title="Le mie gare" sub="Prima della gara la locandina e lo studio, dopo i risultati"
         actions={<>
           <button className="btn primary" onClick={() => setForm({})}><Plus size={18} /> Gara</button>
           <a className="btn" href={MARE_URL} target="_blank" rel="noreferrer"><ExternalLink size={16} /> MA.RE.</a>
         </>} />
       <div className="card-title" style={{ marginBottom: -8 }}>In arrivo</div>
-      {prossime.length ? prossime.map((g) => scheda(g, true)) : <div className="card"><Empty text="Nessuna gara in calendario." action={<Link to="/analisi-gara" className="btn"><FileSearch size={18} /> Crea dal PDF del libretto</Link>} /></div>}
+      {prossime.length ? prossime.map((g) => scheda(g, true)) : <div className="card"><Empty text="Nessuna gara in calendario." action={<Link to="/analisi-gara" className="btn"><FileSearch size={18} /> Crea dal PDF della locandina</Link>} /></div>}
       {passate.length > 0 && <><div className="card-title" style={{ marginBottom: -8 }}>Disputate</div>{passate.map((g) => scheda(g, false))}</>}
       {sciolti.length > 0 && (
         <section className="card">

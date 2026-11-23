@@ -112,9 +112,9 @@ export default function AnalisiDettaglio() {
 
       {a.lettura.sezioni.length > 1 && (
         <div className="field">
-          <span className="label">Libretto</span>
+          <span className="label">Locandina</span>
           <Segmented
-            label="Libretto"
+            label="Locandina"
             value={String(a.sezione)}
             onChange={(v) => { db.analisi.update(analisiId, { sezione: Number(v) }); setAperto(null) }}
             options={a.lettura.sezioni.map((s, i) => ({ value: String(i), label: s.etichetta }))}
@@ -122,10 +122,10 @@ export default function AnalisiDettaglio() {
         </div>
       )}
 
-      {[...a.lettura.avvisi.filter((x) => !/libretti/.test(x)), ...sez.avvisi].length > 0 && (
+      {[...a.lettura.avvisi.filter((x) => !/locandine/.test(x)), ...sez.avvisi].length > 0 && (
         <div className="card avviso">
           <AlertTriangle size={18} color="var(--accent)" style={{ flexShrink: 0 }} />
-          <div>{[...a.lettura.avvisi.filter((x) => !/libretti/.test(x)), ...sez.avvisi].join(' ')}</div>
+          <div>{[...a.lettura.avvisi.filter((x) => !/locandine/.test(x)), ...sez.avvisi].join(' ')}</div>
         </div>
       )}
 

@@ -377,7 +377,7 @@ function costruisciPassi(
       punti += (TIPI_BERSAGLIO[b.tipo].metallo ? 5 : colpi * puntiPerColpo) - c.puntiPersi - c.penalita
       penalitaAttese += c.penalita
       if (TIPI_BERSAGLIO[b.tipo].metallo && c.colpiExtra > 0.2) rischi.push(`${b.id} (${TIPI_BERSAGLIO[b.tipo].nome.toLowerCase()} a ${Math.round(d)} m): circa ${Math.round(c.colpiExtra * 100)}% di colpo in più.`)
-      if (b.parziale && c.penalita > 1.2) rischi.push(`${b.id} coperto: rischio no-shoot o mancato.`)
+      if (b.parziale && c.penalita > 1.2) rischi.push(`${b.id} coperto: rischio no-shoot o miss.`)
       ultimo = b
     }
     rimasti -= extraAttesi

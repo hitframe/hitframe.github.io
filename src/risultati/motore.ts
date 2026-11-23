@@ -381,8 +381,8 @@ export function indicazioni(a: Analisi): Indicazione[] {
   if (tot.MI + tot.NS > 0) {
     const g = stages.reduce((x, s) => x + s.guadagnoErrori, 0)
     out.push({
-      titolo: 'Zero mancati e no-shoot',
-      perche: `${tot.MI} mancat${tot.MI === 1 ? 'o' : 'i'}${tot.NS ? ` e ${tot.NS} no-shoot` : ''}: senza, avresti preso ${g.toFixed(1).replace('.', ',')} punti gara in più.`,
+      titolo: 'Zero miss e no-shoot',
+      perche: `${tot.MI} miss${tot.NS ? ` e ${tot.NS} no-shoot` : ''}: senza, avresti preso ${g.toFixed(1).replace('.', ',')} punti gara in più.`,
       drill: ['parziali', 'carta-metallo', 'piastre'], peso: g,
     })
   }

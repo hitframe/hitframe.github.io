@@ -93,7 +93,7 @@ export default function RisultatoDettaglio() {
         </p>
       )}
       {!r.conVerify && (
-        <div className="card avviso">Senza gli statini (Score Verification) non conosco A, C, D e mancati: carica anche quel PDF per l’analisi degli errori.</div>
+        <div className="card avviso">Senza il Verify (Score Verification) non conosco A, C, D e miss: carica anche quel PDF per l’analisi degli errori.</div>
       )}
 
       <Segmented<Vista> label="Sezione" value={vista} onChange={setVista}
@@ -224,7 +224,7 @@ function Riepilogo({ a, r }: { a: Analisi; r: RisultatoGara }) {
       <section className="card">
         <div className="card-title">E se…</div>
         <div className="list">
-          <Scenario titolo="Senza mancati e procedure" sotto="I mancati diventano A, via le penalità" ris={a.scenari.senzaErrori} base={a.base} />
+          <Scenario titolo="Senza miss e procedure" sotto="I miss diventano A, via le penalità" ris={a.scenari.senzaErrori} base={a.base} />
           <Scenario titolo="Con la precisione dei primi 10" sotto={`Stessi tempi, punti al ${pc(a.top10.precisione)} del massimo`} ris={a.scenari.precisioneTop10} base={a.base} />
           <Scenario titolo="Il 5% più veloce" sotto="Stessi punti, tempi ridotti del 5%" ris={a.scenari.veloce5} base={a.base} />
           <Scenario titolo="Tutte A (limite teorico)" sotto="Stessi tempi, ogni colpo in A" ris={a.scenari.tutteA} base={a.base} />
@@ -258,12 +258,12 @@ function Riepilogo({ a, r }: { a: Analisi; r: RisultatoGara }) {
             <span className="badge zona-a">A {a.tot.A}</span>
             <span className="badge zona-c">C {a.tot.C}</span>
             <span className="badge zona-d">D {a.tot.D}</span>
-            <span className={`badge${a.tot.MI ? ' zona-m' : ''}`}>Mancati {a.tot.MI}</span>
+            <span className={`badge${a.tot.MI ? ' zona-m' : ''}`}>Miss {a.tot.MI}</span>
             <span className="badge" style={{ color: a.tot.NS ? 'var(--fuoco)' : undefined }}>No-shoot {a.tot.NS}</span>
             <span className="badge" style={{ color: a.tot.PE ? 'var(--fuoco)' : undefined }}>Procedure {a.tot.PE}</span>
           </div>
           <p className="prose" style={{ margin: '10px 0 0' }}>
-            Punti stage persi: {persiCD} tra C e D, {persiErr} per mancati, no-shoot e procedure (un mancato costa 15 punti: 5 non presi più 10 di penalità).
+            Punti stage persi: {persiCD} tra C e D, {persiErr} per miss, no-shoot e procedure (un miss costa 15 punti: 5 non presi più 10 di penalità).
           </p>
         </section>
       )}
@@ -289,11 +289,11 @@ function Stage({ a, r, libretto }: { a: Analisi; r: RisultatoGara; libretto: Lib
         <span>Stage</span>
         <Segmented<'numero' | 'costo'> label="Ordine" value={ordine} onChange={setOrdine} options={[{ value: 'costo', label: 'Dove hai perso' }, { value: 'numero', label: 'In ordine' }]} />
       </div>
-      {!libretto && <p className="prose" style={{ margin: '0 0 10px', fontSize: 13 }}>Carica il libretto della gara in Analisi gara per vedere anche metalli, no-shoot e attivazioni di ogni stage.</p>}
+      {!libretto && <p className="prose" style={{ margin: '0 0 10px', fontSize: 13 }}>Carica la locandina della gara in Analisi gara per vedere anche metalli, no-shoot e attivazioni di ogni stage.</p>}
       {ab && (
         <div className="card avviso" style={{ marginBottom: 10 }}>
           <div style={{ flex: 1 }}>
-            I numeri dei risultati non seguono il libretto: ho abbinato gli stage da punti, no-shoot, metalli e tempi.
+            I numeri dei risultati non seguono la locandina: ho abbinato gli stage da punti, no-shoot, metalli e tempi.
             {ab.manuale ? ' Abbinamento verificato da te.' : ab.incerti.length ? ` ${ab.incerti.length} da verificare.` : ''}
           </div>
           <button className="btn" style={{ minHeight: 36 }} onClick={() => setVerifica(true)}>Verifica</button>
@@ -345,7 +345,7 @@ function Stage({ a, r, libretto }: { a: Analisi; r: RisultatoGara; libretto: Lib
                 const met = metalli(st)
                 return (
                   <div className="meta" style={{ marginTop: 4 }}>
-                    <b style={{ color: 'var(--text)' }}>Libretto: stage {st.numero}</b>{ab!.incerti.includes(x.n) && !ab!.manuale ? <span style={{ color: 'var(--accent)' }}> (da verificare)</span> : ''}{' · '}
+                    <b style={{ color: 'var(--text)' }}>Locandina: stage {st.numero}</b>{ab!.incerti.includes(x.n) && !ab!.manuale ? <span style={{ color: 'var(--accent)' }}> (da verificare)</span> : ''}{' · '}
                     {[met ? `${met} metalli` : '', st.bersagli.noShoot ? `${st.bersagli.noShoot} no-shoot` : '', st.flag.mobili ? 'attivazioni' : '', st.flag.manoDebole ? 'mano debole' : st.flag.manoForte ? 'mano forte' : ''].filter(Boolean).join(' · ') || 'solo carta'}
                     {' · '}<Link to={`/analisi-gara/${libretto!.id}/stage/${st.numero}`}>studio dello stage</Link>
                   </div>
@@ -364,7 +364,7 @@ function Stage({ a, r, libretto }: { a: Analisi; r: RisultatoGara; libretto: Lib
               {s.A !== undefined && (
                 <div className="chips" style={{ marginTop: 6 }}>
                   <span className="badge">{s.A}A {s.C}C {s.D}D</span>
-                  {!!s.MI && <span className="badge" style={{ color: 'var(--fuoco)' }}>{s.MI} mancat{s.MI === 1 ? 'o' : 'i'}</span>}
+                  {!!s.MI && <span className="badge" style={{ color: 'var(--fuoco)' }}>{s.MI} miss</span>}
                   {!!s.NS && <span className="badge" style={{ color: 'var(--fuoco)' }}>{s.NS} no-shoot</span>}
                   {!!s.PE && <span className="badge" style={{ color: 'var(--fuoco)' }}>{s.PE} procedur{s.PE === 1 ? 'a' : 'e'}</span>}
                 </div>
@@ -396,8 +396,8 @@ function VerificaAbbinamento({ r, libretto, onClose }: { r: RisultatoGara; libre
     onClose()
   }
   return (
-    <Sheet title="Abbina gli stage al libretto" onClose={onClose}>
-      <p className="prose" style={{ marginTop: 0, fontSize: 13 }}>Per ogni stage della classifica scegli lo stage del libretto. Il disegno ti aiuta a riconoscerlo; si possono scambiare solo stage con gli stessi punti.</p>
+    <Sheet title="Abbina gli stage alla locandina" onClose={onClose}>
+      <p className="prose" style={{ marginTop: 0, fontSize: 13 }}>Per ogni stage della classifica scegli lo stage della locandina. Il disegno ti aiuta a riconoscerlo; si possono scambiare solo stage con gli stessi punti.</p>
       <div className="list">
         {nr.map((rn) => {
           const s = me.stages[rn]
@@ -410,8 +410,8 @@ function VerificaAbbinamento({ r, libretto, onClose }: { r: RisultatoGara; libre
                   <div className="title">Classifica stage {rn} · {r.valoreStage[rn]} punti{ab.incerti.includes(rn) && !ab.manuale ? <span style={{ color: 'var(--accent)', fontWeight: 600 }}> · da verificare</span> : ''}</div>
                   <div className="meta">Tu: {s ? `${f2(s.tempo)} s · ${s.A ?? '?'}A ${s.C ?? '?'}C${s.MI ? ` ${s.MI}M` : ''}` : '—'}</div>
                 </div>
-                <select className="select" style={{ width: 'auto' }} aria-label={`Stage del libretto per lo stage ${rn}`} value={mappa[rn]} onChange={(e) => scegli(rn, Number(e.target.value))}>
-                  {opzioni.map((z) => <option key={z.numero} value={z.numero}>Libretto {z.numero}</option>)}
+                <select className="select" style={{ width: 'auto' }} aria-label={`Stage della locandina per lo stage ${rn}`} value={mappa[rn]} onChange={(e) => scegli(rn, Number(e.target.value))}>
+                  {opzioni.map((z) => <option key={z.numero} value={z.numero}>Locandina {z.numero}</option>)}
                 </select>
               </div>
               {st && libretto.pdf && <div style={{ marginTop: 8 }}><StageDisegno analisiId={libretto.id} pdf={libretto.pdf} pagina={st.pagina} tagliaY={st.tabellaTopY} cimaY={st.disegnoTopY} alt={`Disegno dello stage ${st.numero} del libretto`} /></div>}
@@ -598,7 +598,7 @@ function Riferimento({ r }: { r: RisultatoGara }) {
         {c.diff >= 0 ? <>Gli stai davanti di <b>{f1(c.diff)}</b> punti gara</> : <>Ti sta davanti di <b>{f1(-c.diff)}</b> punti gara</>}
         {c.completo ? <>: sei {c.dTempo <= 0 ? <><b>{f2(-c.dTempo)} s più veloce</b></> : <><b>{f2(c.dTempo)} s più lento</b></>} in totale
           e hai fatto <b>{c.dPts >= 0 ? `${c.dPts} punti in più` : `${-c.dPts} punti in meno`}</b>.</> : '.'}
-        {c.mio && c.suo && <> Colpi in A: {pc(c.mio.aPct)} contro {pc(c.suo.aPct)}; mancati e no-shoot: {c.mio.mancati} contro {c.suo.mancati}.</>}
+        {c.mio && c.suo && <> Colpi in A: {pc(c.mio.aPct)} contro {pc(c.suo.aPct)}; miss e no-shoot: {c.mio.mancati} contro {c.suo.mancati}.</>}
       </p>
       {c.conSuoiPunti && c.conSuoiTempi && (
         <div className="list" style={{ marginTop: 10 }}>
@@ -619,7 +619,7 @@ function Riferimento({ r }: { r: RisultatoGara }) {
             : <>Da lui ti separa soprattutto la <b>velocità</b>: i punti sono già in linea.</>}
         </p>
       )}
-      <div className="card-title" style={{ marginTop: 14, marginBottom: 6, fontSize: 14 }}>Statino stage per stage</div>
+      <div className="card-title" style={{ marginTop: 14, marginBottom: 6, fontSize: 14 }}>Verify stage per stage</div>
       <div className="list">
         {c.stages.map((x) => (
           <div key={x.n} className="item" style={{ display: 'block' }}>

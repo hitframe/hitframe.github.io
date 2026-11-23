@@ -204,7 +204,7 @@ function EditorStage({ id }: { id: number }) {
               })}
             </div>
             <p style={{ margin: '12px 0 0' }}><b>Consiglio:</b> {sim.consiglio!.testo}</p>
-            <p className="prose noprint" style={{ fontSize: 12, margin: '6px 0 0' }}>Tocca un piano per vedere il percorso sul disegno e i passi. I punti attesi tengono conto di A/C/D e del rischio di mancati per la tua classe e le tue abilità.</p>
+            <p className="prose noprint" style={{ fontSize: 12, margin: '6px 0 0' }}>Tocca un piano per vedere il percorso sul disegno e i passi. I punti attesi tengono conto di A/C/D e del rischio di miss per la tua classe e le tue abilità.</p>
             {pianoScelto && (
               <>
                 <div style={{ marginTop: 12 }}><Segmented<Stile> label="Piano" value={pianoScelto.stile} onChange={setPiano} options={[{ value: 'aggressivo', label: 'Aggressivo' }, { value: 'conservativo', label: 'Conservativo' }]} /></div>

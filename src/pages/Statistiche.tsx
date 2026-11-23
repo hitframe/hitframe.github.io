@@ -214,14 +214,14 @@ export default function Statistiche() {
           </section>
 
           <section className="card">
-            <div className="card-title">Mancati ogni 100 colpi</div>
-            <GraficoLinee titolo="Mancati ogni 100 colpi rispetto ai primi 10" etichette={et} formato={(n) => f1(n)} minimo={0}
+            <div className="card-title">Miss ogni 100 colpi</div>
+            <GraficoLinee titolo="Miss ogni 100 colpi rispetto ai primi 10" etichette={et} formato={(n) => f1(n)} minimo={0}
               serie={[
                 { nome: 'Tu', valori: pG.map((p) => p.mancati100), colore: 'var(--accent)' },
                 { nome: 'Primi 10', valori: pG.map((p) => p.mancati100Top10), colore: 'var(--muted)', tratteggio: true },
               ]} />
             <p className="prose" style={{ fontSize: 12, margin: '6px 0 0' }}>
-              Mancati, no-shoot e procedure ti sono costati {f1(punti.reduce((a, p) => a + p.costoErrori, 0))} punti gara in totale.
+              Miss, no-shoot e procedure ti sono costati {f1(punti.reduce((a, p) => a + p.costoErrori, 0))} punti gara in totale.
             </p>
           </section>
 
@@ -237,7 +237,7 @@ export default function Statistiche() {
                   </div>
                 ))}
               </div>
-              <p className="prose" style={{ fontSize: 12, margin: '8px 0 0' }}>Punteggio reale medio su {perCorso.reduce((a, x) => a + x.k, 0)} stage. Il tipo viene dal libretto quando è caricato, altrimenti dai colpi.</p>
+              <p className="prose" style={{ fontSize: 12, margin: '8px 0 0' }}>Punteggio reale medio su {perCorso.reduce((a, x) => a + x.k, 0)} stage. Il tipo viene dalla locandina quando è caricato, altrimenti dai colpi.</p>
             </section>
           )}
 

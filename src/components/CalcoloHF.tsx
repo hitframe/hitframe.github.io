@@ -8,7 +8,7 @@ const VOCI = [
   { k: 'a', label: 'A', nota: '5' },
   { k: 'c', label: 'C', nota: '' },
   { k: 'd', label: 'D', nota: '' },
-  { k: 'm', label: 'Mancati', nota: '−10' },
+  { k: 'm', label: 'Miss', nota: '−10' },
   { k: 'ns', label: 'No-shoot', nota: '−10' },
   { k: 'pe', label: 'Procedurali', nota: '−10' },
 ] as const

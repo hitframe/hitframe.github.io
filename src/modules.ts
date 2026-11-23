@@ -50,7 +50,7 @@ export const AREE: Area[] = [
     id: 'gare', path: '/gare', label: 'Gare', icon: Trophy,
     sezioni: [
       { path: '/gare', label: 'Le mie gare', icon: Trophy },
-      { path: '/analisi-gara', label: 'Libretti', icon: FileSearch },
+      { path: '/analisi-gara', label: 'Locandine', icon: FileSearch },
       { path: '/risultati', label: 'Risultati', icon: Medal },
     ],
     prefissi: ['/gare', '/analisi-gara', '/risultati'],

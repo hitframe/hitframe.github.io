@@ -179,7 +179,7 @@ export default function ProvaForm({
               <Stepper label="A" value={zone.A} onChange={(n) => setZone({ ...zone, A: n })} />
               <Stepper label="C" value={zone.C} onChange={(n) => setZone({ ...zone, C: n })} />
               <Stepper label="D" value={zone.D} onChange={(n) => setZone({ ...zone, D: n })} />
-              <Stepper label="Mancati" value={zone.M} onChange={(n) => setZone({ ...zone, M: n })} />
+              <Stepper label="Miss" value={zone.M} onChange={(n) => setZone({ ...zone, M: n })} />
               <Stepper label="No-shoot" value={zone.NS} onChange={(n) => setZone({ ...zone, NS: n })} />
             </div>
             <div className="row">
