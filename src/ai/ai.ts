@@ -94,7 +94,9 @@ export async function chiedi(cfg: ConfigAI, req: Richiesta): Promise<string> {
       })
       if (!r.ok) throw new ErroreAI(await leggiErrore(r))
       const j = await r.json()
-      return (j.content ?? []).filter((c: { type: string }) => c.type === 'text').map((c: { text: string }) => c.text).join('\n')
+      const testo = (j.content ?? []).filter((c: { type: string }) => c.type === 'text').map((c: { text: string }) => c.text).join('\n')
+      ultimaRisposta = { testo, fine: j.stop_reason ?? null }
+      return testo
     }
     if (cfg.fornitore === 'gemini') return await chiediGemini(cfg.chiave.trim(), modello, req, maxToken)
     // OpenAI
@@ -116,7 +118,8 @@ export async function chiedi(cfg: ConfigAI, req: Richiesta): Promise<string> {
     })
     if (!r.ok) throw new ErroreAI(await leggiErrore(r))
     const j = await r.json()
-    return j.choices?.[0]?.message?.content ?? ''
+    ultimaRisposta = { testo: j.choices?.[0]?.message?.content ?? '', fine: j.choices?.[0]?.finish_reason ?? null }
+    return ultimaRisposta.testo
   } catch (e) {
     if (e instanceof ErroreAI) throw e
     const dettaglio = e instanceof Error && e.message ? ` (${e.message})` : ''
@@ -161,7 +164,9 @@ async function chiediGemini(chiave: string, modello: string, req: Richiesta, max
       }
       if (r.ok) {
         const j = await r.json()
-        return (j.candidates?.[0]?.content?.parts ?? []).map((p: { text?: string }) => p.text ?? '').join('\n')
+        const testo = (j.candidates?.[0]?.content?.parts ?? []).map((p: { text?: string }) => p.text ?? '').join('\n')
+        ultimaRisposta = { testo, fine: j.candidates?.[0]?.finishReason ?? null }
+        return testo
       }
       // modello inesistente: passa al successivo
       if (r.status === 404) { ultimo = await leggiErrore(r); break }
@@ -175,17 +180,53 @@ async function chiediGemini(chiave: string, modello: string, req: Richiesta, max
   throw new ErroreAI(`Google è sovraccarico in questo momento (${ultimo}). Riprova tra qualche minuto.`)
 }
 
-/** Estrae il primo oggetto JSON da una risposta testuale. */
+/** Ultima risposta grezza dell'AI (per capire cosa è andato storto). */
+export let ultimaRisposta: { testo: string; fine: string | null } = { testo: '', fine: null }
+
+/** Chiude un JSON troncato: taglia all'ultimo elemento completo e chiude parentesi e graffe aperte. */
+function riparaJson(t: string): string | null {
+  const pila: string[] = []
+  let inStringa = false, esc = false
+  let ultimoSicuro = -1, pilaSicura: string[] = []
+  for (let i = 0; i < t.length; i++) {
+    const ch = t[i]
+    if (inStringa) {
+      if (esc) esc = false
+      else if (ch === '\\') esc = true
+      else if (ch === '"') inStringa = false
+      continue
+    }
+    if (ch === '"') inStringa = true
+    else if (ch === '{' || ch === '[') pila.push(ch === '{' ? '}' : ']')
+    else if (ch === '}' || ch === ']') {
+      pila.pop()
+      if (!pila.length) return t.slice(0, i + 1)
+      ultimoSicuro = i + 1; pilaSicura = [...pila]
+    } else if (ch === ',') { ultimoSicuro = i; pilaSicura = [...pila] }
+  }
+  if (ultimoSicuro < 0) return null
+  return t.slice(0, ultimoSicuro).replace(/,\s*$/, '') + pilaSicura.reverse().join('')
+}
+
+/** Estrae il primo oggetto JSON da una risposta testuale (ripara le risposte tagliate a metà). */
 export function estraiJson<T>(testo: string): T {
   const pulito = testo.replace(/```json|```/g, '')
   const a = pulito.indexOf('{')
-  const b = pulito.lastIndexOf('}')
-  if (a < 0 || b < a) throw new ErroreAI('L’AI non ha restituito dati leggibili.')
-  try {
-    return JSON.parse(pulito.slice(a, b + 1)) as T
-  } catch {
-    throw new ErroreAI('L’AI ha restituito dati non validi.')
+  if (a < 0) {
+    const inizio = pulito.trim().slice(0, 140)
+    throw new ErroreAI(inizio ? `L’AI ha risposto senza dati: “${inizio}${pulito.trim().length > 140 ? '…' : ''}”` : 'L’AI ha restituito una risposta vuota: riprova.')
   }
+  const b = pulito.lastIndexOf('}')
+  if (b > a) {
+    try { return JSON.parse(pulito.slice(a, b + 1)) as T } catch { /* provo a ripararlo */ }
+  }
+  const riparato = riparaJson(pulito.slice(a))
+  if (riparato) {
+    try { return JSON.parse(riparato) as T } catch { /* niente */ }
+  }
+  throw new ErroreAI(ultimaRisposta.fine === 'max_tokens' || ultimaRisposta.fine === 'length' || ultimaRisposta.fine === 'MAX_TOKENS'
+    ? 'La risposta dell’AI è stata tagliata perché troppo lunga: riprova.'
+    : 'L’AI ha restituito dati non validi: riprova.')
 }
 
 export async function provaCollegamento(cfg: ConfigAI): Promise<string> {

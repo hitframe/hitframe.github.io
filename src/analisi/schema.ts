@@ -410,9 +410,9 @@ da quale posizione si vede davvero un bersaglio, distanze tra posizioni e dei be
 attivazioni (popper che attivano mobili), se un bersaglio si può ingaggiare in movimento. Cita sempre i bersagli con il loro id
 e dove sono ("il 7, sul muro al centro").
 
-Rispondi con questo JSON:
+Rispondi con questo JSON, compatto (senza spazi o a capo inutili), con "lettura" di massimo 3 frasi:
 ${FORMATO}`
-  const risposta = await chiedi(cfg, { sistema: SISTEMA, testo, immagine: { mime: 'image/jpeg', base64: img.url.split(',')[1] }, maxToken: 5000 })
+  const risposta = await chiedi(cfg, { sistema: SISTEMA, testo, immagine: { mime: 'image/jpeg', base64: img.url.split(',')[1] }, maxToken: 12000 })
   const raw = estraiJson(risposta) as Record<string, unknown>
   const schema = normalizzaSchema(raw, 'ai')
   if (!schema.posizioni.some((p) => p.bersagli.length)) throw new ErroreAI('L’AI non ha trovato bersagli nel disegno: costruisci lo schema a mano.')
@@ -437,7 +437,7 @@ ${risposte.map((r) => `- ${r.domanda} → ${r.risposta}`).join('\n')}
 Correggi lo schema tenendo conto delle risposte (sono più affidabili del disegno) e restituisci SOLO il JSON completo,
 con "domande": [] se non hai altri dubbi importanti:
 ${FORMATO}`
-  const risposta = await chiedi(cfg, { sistema: SISTEMA, testo, immagine: { mime: 'image/jpeg', base64: img.url.split(',')[1] }, maxToken: 5000 })
+  const risposta = await chiedi(cfg, { sistema: SISTEMA, testo, immagine: { mime: 'image/jpeg', base64: img.url.split(',')[1] }, maxToken: 12000 })
   const raw = estraiJson(risposta) as Record<string, unknown>
   const schema = normalizzaSchema(raw, 'ai')
   return { schema: { ...schema, risposte: [...(bozza.risposte ?? []), ...risposte] }, domande: leggiDomande(raw.domande) }
