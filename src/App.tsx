@@ -34,6 +34,7 @@ const Video = lazy(() => import('./pages/Video'))
 const VideoRun = lazy(() => import('./pages/VideoRun'))
 const RisultatoDettaglio = lazy(() => import('./pages/RisultatoDettaglio'))
 const Fisico = lazy(() => import('./pages/Fisico'))
+const StoricoMisure = lazy(() => import('./pages/StoricoMisure'))
 
 type Fase =
   | { tipo: 'app' }
@@ -112,6 +113,7 @@ function Applicazione() {
             <Route path="risultati" element={<Suspense fallback={<div className="page" />}><Risultati /></Suspense>} />
             <Route path="risultati/:id" element={<Suspense fallback={<div className="page" />}><RisultatoDettaglio /></Suspense>} />
             <Route path="video" element={<Suspense fallback={<div className="page" />}><Video /></Suspense>} />
+            <Route path="video/storico" element={<Suspense fallback={<div className="page" />}><StoricoMisure /></Suspense>} />
             <Route path="video/run" element={<Suspense fallback={<div className="page" />}><VideoRun /></Suspense>} />
             <Route path="video/run/:id" element={<Suspense fallback={<div className="page" />}><VideoRun /></Suspense>} />
             <Route path="munizioni" element={<Munizioni />} />

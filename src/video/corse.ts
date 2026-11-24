@@ -11,6 +11,8 @@ export interface RunSplit {
   stage?: string
   file?: string
   date?: string
+  /** da dove GDA Split ha preso la data: 'video' (metadati), 'file', 'manuale', 'oggi' */
+  dateSrc?: string
   plan?: number | null
   expected?: number | null
   total?: number | null
@@ -55,9 +57,11 @@ export function daRunSplit(r: RunSplit): Omit<Corsa, 'id'> {
     return tipo || distanza ? { tipo: tipo ?? 'carta', distanza } : null
   })
   const data = (r.date && /^\d{4}-\d{2}-\d{2}/.test(r.date) ? r.date : new Date().toISOString()).slice(0, 10)
+  const fonte = r.dateSrc === 'video' || r.dateSrc === 'file' || r.dateSrc === 'manuale' ? r.dateSrc : 'oggi'
   return {
     creato: new Date().toISOString(),
     data,
+    dataFonte: fonte,
     titolo: (r.stage || r.file || 'Run').trim(),
     file: r.file ?? '',
     colpi,

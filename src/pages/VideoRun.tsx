@@ -25,6 +25,15 @@ function leggiArrivo(): Omit<Corsa, 'id'> | null {
 }
 
 /** Pagina con chiave sull'id: una run nuova o un'altra run ripartono da zero. */
+const FONTE_DATA: Record<NonNullable<Corsa['dataFonte']>, string> = {
+  video: 'Presa dai dati del video.',
+  file: 'Presa dalla data del file: controlla che sia giusta.',
+  manuale: 'Scelta da te.',
+  evento: 'Presa dalla sessione o gara collegata.',
+  oggi: 'Data da verificare: scegli il giorno in cui hai girato il video.',
+}
+const dataSicura = (c: Pick<Corsa, 'dataFonte'>) => c.dataFonte === 'video' || c.dataFonte === 'manuale' || c.dataFonte === 'evento'
+
 export default function VideoRunPagina() {
   const { id } = useParams()
   return <VideoRun key={id ?? 'nuova'} id={id} />
@@ -72,6 +81,14 @@ function VideoRun({ id }: { id?: string }) {
 
   const set = <K extends keyof Corsa>(k: K, v: Corsa[K]) => setC((o) => (o ? { ...o, [k]: v } : o))
   const s = sintesiCorsa(c as Corsa)
+  // collegando la run a una sessione o a una gara, se la data non viene dal video prende quella dell'evento
+  const scegliEvento = (eid: number | null) => setC((o) => {
+    if (!o) return o
+    const ev = eventi.find((e) => e.id === eid)
+    const giorno = ev ? (ev.tipo === 'gara' ? ev.gara?.giornoGara || ev.data : ev.data) : null
+    if (ev && giorno && !dataSicura(o)) return { ...o, eventoId: eid, data: giorno, dataFonte: 'evento' }
+    return { ...o, eventoId: eid }
+  })
   const sceltaDrill = (did: string) => {
     const d = did ? trovaDrill(did, personali) : undefined
     setC((o) => o && { ...o, drillId: did || null, partenzaStandard: d ? /fondina/i.test(d.partenza ?? '') && /resa/i.test(d.partenza ?? '') : o.partenzaStandard, distanzaTipica: o.distanzaTipica ?? metriDa(d?.distanza) })
@@ -133,7 +150,10 @@ function VideoRun({ id }: { id?: string }) {
 
       <section className="card form">
         <label className="field"><span>Nome</span><input className="input" value={c.titolo} onChange={(e) => set('titolo', e.target.value)} /></label>
-        <label className="field"><span>Data</span><input className="input" type="date" value={c.data} onChange={(e) => set('data', e.target.value)} /></label>
+        <label className="field"><span>Data della run</span>
+          <input className="input" type="date" value={c.data} onChange={(e) => setC((o) => o && { ...o, data: e.target.value, dataFonte: 'manuale' })} />
+          <span className="meta" style={{ color: dataSicura(c) ? undefined : 'var(--accent)' }}>{FONTE_DATA[c.dataFonte ?? 'oggi']}</span>
+        </label>
         <div className="field">
           <span>È di</span>
           <Segmented label="Contesto della run" value={c.contesto} onChange={(v) => set('contesto', v)}
@@ -143,7 +163,7 @@ function VideoRun({ id }: { id?: string }) {
         {c.contesto === 'allenamento' && (
           <>
             <label className="field"><span>Sessione</span>
-              <select className="select" value={c.eventoId ?? ''} onChange={(e) => set('eventoId', e.target.value ? Number(e.target.value) : null)}>
+              <select className="select" value={c.eventoId ?? ''} onChange={(e) => scegliEvento(e.target.value ? Number(e.target.value) : null)}>
                 <option value="">Nessuna sessione in calendario</option>
                 {eventi.filter((e) => e.tipo === 'fuoco').map((e) => <option key={e.id} value={e.id}>{fmt(e.data, 'd MMM')} · {e.titolo}</option>)}
               </select>
@@ -171,7 +191,7 @@ function VideoRun({ id }: { id?: string }) {
         {c.contesto === 'gara' && (
           <>
             <label className="field"><span>Gara</span>
-              <select className="select" value={c.eventoId ?? ''} onChange={(e) => set('eventoId', e.target.value ? Number(e.target.value) : null)}>
+              <select className="select" value={c.eventoId ?? ''} onChange={(e) => scegliEvento(e.target.value ? Number(e.target.value) : null)}>
                 <option value="">Scegli la gara</option>
                 {eventi.filter((e) => e.tipo === 'gara').map((e) => <option key={e.id} value={e.id}>{fmt(e.data, 'd MMM yyyy')} · {e.titolo}</option>)}
               </select>

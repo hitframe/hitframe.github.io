@@ -7,7 +7,7 @@
 import { useEffect, useState } from 'react'
 import { db } from '../db/db'
 import type { AnalisiGara } from '../db/types'
-import { getAccount, tokenValido } from '../google/auth'
+import { getAccount, puoRinnovareDaSolo, rinnovaSilenzioso, tokenValido } from '../google/auth'
 import { caricaPdf, eliminaFile, elencaPdf, scaricaPdf } from './drive'
 import { sospendiSegnalazioni } from './segnali'
 
@@ -25,6 +25,10 @@ export function allineaPdf(): Promise<number> {
       const id = await caricaPdf(a.pdf, nome)
       await sospendiSegnalazioni(() => db.analisi.update(a.id!, { pdfDrive: id }))
       caricati++
+    }
+    // porta su questo dispositivo le locandine che mancano, così al poligono si vedono anche offline
+    for (const a of await db.analisi.toArray()) {
+      if (!a.pdf && a.pdfDrive) await assicuraPdf(a).catch(() => false)
     }
     try {
       const usati = new Set((await db.analisi.toArray()).map((a) => a.pdfDrive).filter(Boolean) as string[])
@@ -45,11 +49,14 @@ const scaricamenti = new Map<number, Promise<boolean>>()
 /** Porta su questo dispositivo il PDF di un'analisi, se è nel Drive. */
 export function assicuraPdf(a: Pick<AnalisiGara, 'id' | 'pdf' | 'pdfDrive'>): Promise<boolean> {
   if (a.pdf) return Promise.resolve(true)
-  if (!a.pdfDrive || a.id == null || !getAccount() || !tokenValido()) return Promise.resolve(false)
+  if (!a.pdfDrive || a.id == null || !getAccount()) return Promise.resolve(false)
+  if (!tokenValido() && !puoRinnovareDaSolo()) return Promise.resolve(false)
   let p = scaricamenti.get(a.id)
   if (!p) {
     const id = a.id, fileId = a.pdfDrive
     p = (async () => {
+      // nell'app per computer l'accesso si rinnova da solo; nel browser serve un tocco dell'utente
+      if (!tokenValido() && !(await rinnovaSilenzioso())) return false
       const blob = await scaricaPdf(fileId)
       if (!blob) return false
       await sospendiSegnalazioni(() => db.analisi.update(id, { pdf: blob }))
@@ -81,6 +88,6 @@ export function usePdfAnalisi(a: Pick<AnalisiGara, 'id' | 'pdf' | 'pdfDrive'> | 
 
 export const MSG_PDF: Record<Exclude<StatoPdf, 'pronto'>, string> = {
   scarico: 'Scarico il PDF della gara dal tuo Google Drive…',
-  'nel-drive': 'Il PDF di questa gara è nel tuo Google Drive: collegati a internet e all’account Google per vederlo qui.',
-  assente: 'Il disegno non è disponibile: ricarica il PDF della gara.',
+  'nel-drive': 'La locandina è nel tuo Google Drive e su questo dispositivo non c’è ancora.',
+  assente: 'Il disegno non è disponibile: ricarica la locandina della gara.',
 }

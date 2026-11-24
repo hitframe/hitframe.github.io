@@ -31,7 +31,7 @@ export default function AbilitaMisurate({ profilo }: { profilo: Profilo | undefi
 
   return (
     <section className="card" id="abilita">
-      <div className="card-title"><span><Gauge size={18} style={{ verticalAlign: -3 }} /> Abilità misurate dai video</span><Link to="/video">{a.run} run</Link></div>
+      <div className="card-title"><span><Gauge size={18} style={{ verticalAlign: -3 }} /> Abilità misurate dai video</span><Link to="/video/storico">{a.run} run · storico</Link></div>
       {conDati.length === 0 ? (
         <p className="prose" style={{ margin: 0 }}>
           Qui finiscono i tempi veri delle tue run: analizza i video POV con GDA Split e salvali in Hitframe. Estrazione, split, transizioni, ricariche e movimenti si aggiornano da soli.

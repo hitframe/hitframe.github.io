@@ -1,5 +1,6 @@
 import { useLiveQuery } from 'dexie-react-hooks'
 import { MSG_PDF, usePdfAnalisi } from '../sync/pdf'
+import AvvisoPdf from '../components/AvvisoPdf'
 import { AlertTriangle, ArrowLeft, Check, ClipboardCheck, Dumbbell, Hand, MapPinned, Pencil, Sparkles, Zap } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
@@ -201,7 +202,7 @@ export default function StudioStage() {
       )}
 
       {!a.pdf ? (
-        <div className="card">{statoPdf === 'pronto' ? 'Carico il disegno…' : MSG_PDF[statoPdf]}</div>
+        <div className="card">{statoPdf === 'pronto' ? 'Carico il disegno…' : (a ? <AvvisoPdf stato={statoPdf} a={a} /> : MSG_PDF[statoPdf])}</div>
       ) : erroreImg ? (
         <div className="card">Non riesco a mostrare il disegno.</div>
       ) : !img ? (

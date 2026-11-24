@@ -416,6 +416,8 @@ export interface Corsa {
   id?: number
   creato: string
   data: string // YYYY-MM-DD
+  /** da dove viene la data: dai metadati del video, dalla data del file, scelta a mano, o sconosciuta (oggi) */
+  dataFonte?: 'video' | 'file' | 'manuale' | 'evento' | 'oggi'
   titolo: string
   file: string // nome del video
   /** tempi dei colpi dal beep (già allineati al tempo ufficiale, se indicato) */

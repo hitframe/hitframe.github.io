@@ -266,6 +266,7 @@ input[type=range]{width:100%;accent-color:var(--accent);min-height:36px}
 </div>
 <label class="row" style="margin-top:10px;gap:10px;min-height:44px;font-size:14px"><input type="checkbox" id="official" checked style="width:22px;height:22px;accent-color:var(--accent)"><span class="grow">Tempo ufficiale: il totale coincide col timer del RO <span class="hint" style="display:block">L'ultimo colpo resta dov'è, sposto di pochi millisecondi l'inizio del conteggio. Gli split non cambiano.</span></span></label>
 <div class="field" style="margin-top:10px"><label for="stage">Gara / stage</label><input class="input" id="stage" type="text" autocomplete="off" placeholder="es. Top Training · Stage 6"></div>
+<div class="field" style="margin-top:10px"><label for="vdate">Data della run</label><input class="input" id="vdate" type="date"><span class="hint" id="vdateHint" style="display:block;margin-top:4px"></span></div>
 </div>
 </section>
 
@@ -1227,7 +1228,44 @@ async function decodeNative(file,buf){
   return {ab:best.ab,skip:Math.round(best.skip*best.ab.sampleRate)};
 }
 
+// ---------- data della run: dai metadati del video (MP4/MOV), altrimenti dalla data del file ----------
+const giornoLocale=d=>{const z=n=>String(n).padStart(2,'0');return d.getFullYear()+'-'+z(d.getMonth()+1)+'-'+z(d.getDate());};
+async function dataDalVideo(file){
+  try{
+    let pos=0;const fine=file.size;
+    for(let i=0;i<64&&pos+8<=fine;i++){
+      const h=new DataView(await file.slice(pos,pos+16).arrayBuffer());
+      let size=h.getUint32(0);const tipo=String.fromCharCode(h.getUint8(4),h.getUint8(5),h.getUint8(6),h.getUint8(7));
+      let head=8;
+      if(size===1){size=Number(h.getBigUint64(8));head=16;}else if(size===0)size=fine-pos;
+      if(size<8)break;
+      if(tipo==='moov'){
+        const buf=await file.slice(pos,pos+Math.min(size,32e6)).arrayBuffer();
+        const b=new Uint8Array(buf);
+        // Apple: com.apple.quicktime.creationdate con l'ora locale dello scatto
+        const txt=new TextDecoder('latin1').decode(b);
+        const iso=txt.match(/(20\d\d-[01]\d-[0-3]\dT[0-2]\d:[0-5]\d:[0-5]\d(?:[+-]\d{2}:?\d{2}|Z)?)/);
+        if(iso){const d=new Date(iso[1].replace(/([+-]\d{2})(\d{2})$/,'$1:$2'));if(!isNaN(d))return{data:iso[1].slice(0,10),fonte:'video'};}
+        const m=txt.indexOf('mvhd');
+        if(m>=4){const dv=new DataView(buf);const ver=b[m+4];const sec=ver===1?Number(dv.getBigUint64(m+8)):dv.getUint32(m+8);
+          const d=new Date((sec-2082844800)*1000);if(sec>0&&d.getFullYear()>2005&&d<=new Date(Date.now()+864e5))return{data:giornoLocale(d),fonte:'video'};}
+        break;
+      }
+      pos+=size;
+    }
+  }catch(e){}
+  const lm=file.lastModified;
+  if(lm&&Date.now()-lm>5*60e3)return{data:giornoLocale(new Date(lm)),fonte:'file'};
+  return{data:giornoLocale(new Date()),fonte:'oggi'};
+}
+function mostraData(r){
+  $('vdate').value=r.data;$('vdate').dataset.fonte=r.fonte;
+  $('vdateHint').textContent=r.fonte==='video'?'Presa dal video.':r.fonte==='file'?'Presa dalla data del file: controllala.':'Non trovo la data nel video: scegli il giorno della run.';
+  $('vdateHint').style.color=r.fonte==='video'?'':'var(--accent)';
+}
+$('vdate').addEventListener('change',()=>{$('vdate').dataset.fonte='manuale';$('vdateHint').textContent='Scelta da te.';$('vdateHint').style.color='';});
 async function load(file){
+  dataDalVideo(file).then(mostraData);
   S.name=file.name;S.file=file;S.undo=[];S.man={add:[],del:[],endAt:null};S.ctx=null;S.beep=null;S.shots=[];S.rejected=[];S.beepCands=[];S.wc=null;S.mp=null;
   updUndo();clearResult();
   $('fileName').textContent=file.name;$('newBtn').classList.remove('hide');
@@ -1782,7 +1820,7 @@ const textOut=(name,text,mime)=>({name,blob:new Blob([text],{type:mime}),mime});
 
 // ---------- dati ----------
 function payload(){
-  const R=rows();return{stage:$('stage').value||S.name,file:S.name,date:new Date().toISOString(),beep:S.beep,plan:planVal()||null,expected:expVal()||null,
+  const R=rows();return{stage:$('stage').value||S.name,file:S.name,date:$('vdate').value?$('vdate').value+'T12:00:00':new Date().toISOString(),dateSrc:$('vdate').dataset.fonte||'oggi',beep:S.beep,plan:planVal()||null,expected:expVal()||null,
     total:R.length?+R[R.length-1].t.toFixed(3):null,distTipica:+String($('distTip').value).replace(',','.')||null,shots:R.map(r=>({n:r.n,t:+r.t.toFixed(3),split:+r.split.toFixed(3),kind:r.kind,tag:r.tag,bers:r.bers,dist:r.dist}))};
 }
 function toCsv(list){

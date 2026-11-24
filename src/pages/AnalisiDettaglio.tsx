@@ -1,3 +1,4 @@
+import type React from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { AlertTriangle, ArrowLeft, CalendarCheck, CalendarPlus, CalendarRange, ChevronDown, Hand, MapPinned, Target, Timer, Trash2, Zap } from 'lucide-react'
 import { useMemo, useState } from 'react'
@@ -5,7 +6,8 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 import EventoForm from '../components/EventoForm'
 import PianoForm from '../components/PianoForm'
 import StageDisegno from '../components/StageDisegno'
-import { MSG_PDF, usePdfAnalisi } from '../sync/pdf'
+import { usePdfAnalisi } from '../sync/pdf'
+import AvvisoPdf from '../components/AvvisoPdf'
 import { propostaGara } from '../analisi/collega'
 import { Segmented, useToast } from '../components/ui'
 import { leggiDateGara } from '../analisi/date'
@@ -222,7 +224,7 @@ export default function AnalisiDettaglio() {
         <div className="nav-section" style={{ padding: '4px 2px' }}>Stage</div>
         {stages.map((s, i) => (
           <StageCard key={`${a.sezione}-${s.numero}`} s={s} stima={stime[i]} aperto={aperto === s.numero}
-            onToggle={() => setAperto(aperto === s.numero ? null : s.numero)} analisiId={analisiId} pdf={a.pdf} msgPdf={statoPdf === 'pronto' ? undefined : MSG_PDF[statoPdf]}
+            onToggle={() => setAperto(aperto === s.numero ? null : s.numero)} analisiId={analisiId} pdf={a.pdf} msgPdf={statoPdf === 'pronto' ? undefined : <AvvisoPdf stato={statoPdf} a={a} />}
             haMappa={!!a.mappe?.[`${a.sezione}-${s.numero}`]} />
         ))}
       </section>
@@ -254,7 +256,7 @@ export default function AnalisiDettaglio() {
 }
 
 function StageCard({ s, stima, aperto, onToggle, analisiId, pdf, haMappa, msgPdf }: {
-  s: StageLetto; stima?: StimaStage; aperto: boolean; onToggle: () => void; analisiId: number; pdf: Blob | null; haMappa: boolean; msgPdf?: string
+  s: StageLetto; stima?: StimaStage; aperto: boolean; onToggle: () => void; analisiId: number; pdf: Blob | null; haMappa: boolean; msgPdf?: React.ReactNode
 }) {
   const nMet = metalli(s)
   const speciali = partenzaSpeciale(s)

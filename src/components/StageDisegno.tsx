@@ -1,3 +1,4 @@
+import type React from 'react'
 import type { PDFDocumentProxy } from 'pdfjs-dist'
 import { useEffect, useRef, useState } from 'react'
 import { apriPdf, disegnaStage } from '../analisi/estrai'
@@ -15,7 +16,7 @@ function documento(id: number, pdf: Blob): Promise<PDFDocumentProxy> {
 }
 
 export default function StageDisegno({ analisiId, pdf, pagina, tagliaY, cimaY, alt, messaggio }: {
-  analisiId: number; pdf: Blob | null; pagina: number; tagliaY: number; cimaY?: number; alt: string; messaggio?: string
+  analisiId: number; pdf: Blob | null; pagina: number; tagliaY: number; cimaY?: number; alt: string; messaggio?: React.ReactNode
 }) {
   const box = useRef<HTMLDivElement>(null)
   const canvas = useRef<HTMLCanvasElement>(null)

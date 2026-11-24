@@ -67,7 +67,7 @@ export default function Video() {
         <a className="btn primary" href={SPLIT}><Clapperboard size={20} /> Analizza un video</a>
       </section>
       <section className="card">
-        <div className="card-title"><span><Gauge size={18} style={{ verticalAlign: -3 }} /> Le tue run</span><Link to="/quadro#abilita">Abilità misurate</Link></div>
+        <div className="card-title"><span><Gauge size={18} style={{ verticalAlign: -3 }} /> Le tue run</span><Link to="/video/storico">Storico misure</Link></div>
         {daImportare.length > 0 && (
           <button className="btn" style={{ marginBottom: 10 }} onClick={() => importa(daImportare)}>
             <Download size={18} /> Importa {daImportare.length} run dallo storico di GDA Split
@@ -86,7 +86,7 @@ export default function Video() {
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div className="title">{c.titolo}</div>
                     <div className="meta">
-                      {fmt(c.data, 'd MMM')} · {CONTESTO[c.contesto]}{ev ? ` · ${ev.titolo}` : ''}{c.stage ? ` · stage ${c.stage}` : ''} · {s.colpi} colpi · {f2(c.tempoTimer ?? s.totale)} s
+                      {fmt(c.data, 'd MMM yy')}{c.dataFonte !== 'video' && c.dataFonte !== 'manuale' && c.dataFonte !== 'evento' ? <span className="run-badge"> (data da verificare)</span> : null} · {CONTESTO[c.contesto]}{ev ? ` · ${ev.titolo}` : ''}{c.stage ? ` · stage ${c.stage}` : ''} · {s.colpi} colpi · {f2(c.tempoTimer ?? s.totale)} s
                       {s.daIndicare > 0 && <span className="run-badge"> · {s.daIndicare} pause da indicare</span>}
                     </div>
                   </div>
