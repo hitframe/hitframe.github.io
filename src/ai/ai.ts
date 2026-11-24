@@ -27,7 +27,7 @@ export const NOMI_FORNITORI: Record<Fornitore, string> = {
 }
 
 export const LINK_CHIAVI: Record<Fornitore, string> = {
-  claude: 'https://console.anthropic.com/settings/keys',
+  claude: 'https://platform.claude.com/settings/keys',
   gemini: 'https://aistudio.google.com/apikey',
   openai: 'https://platform.openai.com/api-keys',
 }
