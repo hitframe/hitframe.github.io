@@ -215,6 +215,8 @@ export interface AnalisiGara {
   eventiRifiutati?: number[]
   /** Mappe degli stage, chiave "sezione-numero" */
   mappe?: Record<string, import('../analisi/mappa').MappaStage>
+  /** schema a posizioni e ingaggi di ogni stage (studio dello stage) */
+  schemi?: Record<string, import('../analisi/schema').SchemaStage>
 }
 
 /** Una prova di un drill (a fuoco o in bianco). */
