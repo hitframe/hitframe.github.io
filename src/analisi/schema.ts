@@ -7,7 +7,7 @@
  */
 import { chiedi, estraiJson, getConfigAI, ErroreAI } from '../ai/ai'
 import type { Classe, Profilo } from '../db/types'
-import { CAPIENZA, PERC_PUNTI } from './motore'
+import { CAPIENZA, PERC_PUNTI, stimaStage } from './motore'
 import { TIPI_BERSAGLIO, type MappaStage, type TipoBersaglio } from './mappa'
 import type { StageLetto } from './tipi'
 
@@ -23,6 +23,17 @@ export interface BersaglioSchema {
   mobile?: boolean
   nota?: string
 }
+export interface Segno {
+  k: 'P' | 'pos' | 'bers'
+  x: number
+  y: number
+  tipo?: TipoBersaglio
+  vis?: Visibilita
+  /** distanza scelta a mano (metri): vince sul calcolo dal disegno */
+  d?: number
+  mobile?: boolean
+  nome?: string
+}
 export interface PosizioneSchema {
   id: string // A, B, C…
   nome: string // "box destro, dietro i barili"
@@ -36,6 +47,10 @@ export interface SchemaStage {
   lettura?: string
   fonte: 'ai' | 'manuale'
   risposte?: { domanda: string; risposta: string }[]
+  /** segni sul disegno (coordinate 0–1000 sull'immagine), nell'ordine: P, posizioni e bersagli */
+  segni?: Segno[]
+  /** profondità dello stage in metri, dalla fault line più bassa al parapalle (scala del disegno) */
+  profondita?: number
   /** consigli del coach AI, per stile */
   coach?: Partial<Record<Stile, string[]>>
   aggiornato: string
@@ -137,6 +152,7 @@ export interface Stringa { n: number; colpi: number; testo: string }
 export interface Strategia {
   stile: Stile
   capienza: number
+  scorta: number
   tempo: number
   punti: number
   hf: number
@@ -163,19 +179,21 @@ export function colpiAllaPartenza(s: StageLetto, cap: number) {
   return s.flag.armaScarica || s.flag.colpoNonCamerato ? cap : cap + 1
 }
 
-interface Ctx { cap: number; t: Profilo['tempi']; pend: number; st: typeof PARAMETRI[Stile] }
+interface Ctx { cap: number; t: Profilo['tempi']; pend: number; st: typeof PARAMETRI[Stile]; scorta: number }
 
 const fattoreDist = (c: Ctx, d: number) => 1 + Math.max(0, d - 7) * c.pend
 
 /** Tiro in una posizione: tempi dei bersagli e ricariche da fermo se i colpi non bastano. */
-function tiraPosizione(c: Ctx, p: PosizioneSchema, colpiIn: number, entraInMovimento: boolean) {
+function tiraPosizione(c: Ctx, p: PosizioneSchema, colpiIn: number, entraInMovimento: boolean, finale: boolean) {
   let colpi = colpiIn
   let tempo = 0
   const dettagli: string[] = []
   const ricaricheFermo: string[] = []
   p.bersagli.forEach((b, i) => {
     const n = colpiDi(b)
-    if (colpi < n) {
+    // colpi di scorta per i makeup: mai pianificare di sparare l'ultimo colpo prima di un cambio (tranne alla fine dello stage)
+    const ultimo = finale && i === p.bersagli.length - 1
+    if (colpi < n + (ultimo ? 0 : c.scorta)) {
       tempo += c.t.ricarica - c.t.transizioneVicina + (colpi === 0 ? 0.3 : 0)
       ricaricheFermo.push(b.id)
       colpi = colpi > 0 ? c.cap + 1 : c.cap
@@ -203,11 +221,11 @@ function tiraPosizione(c: Ctx, p: PosizioneSchema, colpiIn: number, entraInMovim
 }
 
 /** Calcola la strategia per uno stile: sceglie dove ricaricare (meglio in movimento) e stima tempi e punti. */
-export function strategia(sc: SchemaStage, s: StageLetto, profilo: Profilo, stile: Stile, capienza?: number): Strategia | null {
+export function strategia(sc: SchemaStage, s: StageLetto, profilo: Profilo, stile: Stile, capienza?: number, scorta = 2): Strategia | null {
   const pos = sc.posizioni.filter((p) => p.bersagli.length)
   if (!pos.length) return null
   const t = profilo.tempi
-  const c: Ctx = { cap: capienza ?? capienzaDi(profilo), t, pend: profilo.pendenzaDistanza ?? 0.035, st: PARAMETRI[stile] }
+  const c: Ctx = { cap: capienza ?? capienzaDi(profilo), t, pend: profilo.pendenzaDistanza ?? 0.035, st: PARAMETRI[stile], scorta }
   const inizio = colpiAllaPartenza(s, c.cap)
 
   const movimento = (i: number) => {
@@ -232,7 +250,7 @@ export function strategia(sc: SchemaStage, s: StageLetto, profilo: Profilo, stil
         scelte.push([colpi > 0 ? c.cap + 1 : c.cap, true, Math.max(0.2, t.ricarica * 0.85 - tm) + (colpi === 0 ? 0.3 : 0) + colpi * 0.01])
       }
       for (const [entra, ric, extra] of scelte) {
-        const r = tiraPosizione(c, pos[i], entra, inMov(pos[i]))
+        const r = tiraPosizione(c, pos[i], entra, inMov(pos[i]), i === pos.length - 1)
         const costo = nodo.costo + extra + r.tempo
         const k = r.colpi
         const prima = nuovi.get(k)
@@ -300,7 +318,7 @@ export function strategia(sc: SchemaStage, s: StageLetto, profilo: Profilo, stil
         tempo: durata, posizione: p.id,
       })
     }
-    const r = tiraPosizione(c, p, scelta.entra, movimentoEntrando)
+    const r = tiraPosizione(c, p, scelta.entra, movimentoEntrando, i === pos.length - 1)
     tempo += r.tempo
     let parti: string[] = []
     for (const b of p.bersagli) {
@@ -326,7 +344,7 @@ export function strategia(sc: SchemaStage, s: StageLetto, profilo: Profilo, stil
   const parziali = pos.flatMap((p) => p.bersagli).filter((b) => b.vis !== 'piena').length
   const punti = Math.max(0, s.puntiMax * perc - parziali * 0.6)
   const consigli = consigliBase(pos, ricariche, stile, c.cap)
-  return { stile, capienza: c.cap, tempo, punti, hf: punti / tempo, stringhe, ricariche, passi, consigli }
+  return { stile, capienza: c.cap, scorta, tempo, punti, hf: punti / tempo, stringhe, ricariche, passi, consigli }
 }
 
 function consigliBase(pos: PosizioneSchema[], ricariche: Strategia['ricariche'], stile: Stile, cap: number): string[] {
@@ -341,25 +359,161 @@ function consigliBase(pos: PosizioneSchema[], ricariche: Strategia['ricariche'],
   return out
 }
 
-/** Le tre strategie e quella consigliata (miglior hit factor atteso per il tuo livello). */
-export function strategie(sc: SchemaStage, s: StageLetto, profilo: Profilo) {
-  const tutte = (['aggressivo', 'equilibrato', 'prudente'] as Stile[]).map((st) => strategia(sc, s, profilo, st)).filter(Boolean) as Strategia[]
+export type Scorta = number | 'auto'
+/** Colpi di scorta per i makeup (impostazione del tiratore): 'auto' li decide lo stile e quanti metalli ci sono. */
+export function leggiScorta(): Scorta {
+  try {
+    const v = localStorage.getItem('hf-colpi-scorta')
+    if (v == null || v === 'auto') return 'auto'
+    const n = Number(v)
+    return Number.isFinite(n) ? Math.max(0, Math.min(4, n)) : 'auto'
+  } catch { return 'auto' }
+}
+
+/**
+ * Scorta automatica: aggressiva = si può finire a slide aperto (ricarica da aperto); equilibrata 1; prudente 2.
+ * Con molti ferri si tengono colpi per le ribattute: +1 ogni 3 metalli (massimo +2).
+ */
+export function scortaPer(stile: Stile, sc: SchemaStage, scelta: Scorta) {
+  if (scelta !== 'auto') return scelta
+  const ferri = sc.posizioni.flatMap((p) => p.bersagli).filter((b) => TIPI_BERSAGLIO[b.tipo].metallo).length
+  const base = stile === 'aggressivo' ? 0 : stile === 'equilibrato' ? 1 : 2
+  return base + Math.min(2, Math.floor(ferri / 3))
+}
+
+/**
+ * Le tre strategie e quella consigliata (miglior hit factor atteso per il tuo livello).
+ * I tempi assoluti sono ancorati ai tuoi tempi reali di gara per quel tipo di stage: il motore decide le differenze
+ * tra le strategie e quanto questo stage è più facile o più difficile della media, non il tempo da zero.
+ */
+export function strategie(sc: SchemaStage, s: StageLetto, profilo: Profilo, scorta: Scorta = leggiScorta()) {
+  const tutte = (['aggressivo', 'equilibrato', 'prudente'] as Stile[]).map((st) => strategia(sc, s, profilo, st, undefined, scortaPer(st, sc, scorta))).filter(Boolean) as Strategia[]
   if (!tutte.length) return null
+  const eq = tutte.find((x) => x.stile === 'equilibrato') ?? tutte[0]
+  const rif = stimaStage(s, profilo)
+  const motore = Math.min(rif.obiettivo * 1.3, Math.max(rif.obiettivo * 0.8, eq.tempo))
+  const base = 0.6 * rif.obiettivo + 0.4 * motore
+  const k = base / eq.tempo
+  for (const x of tutte) {
+    x.tempo *= k
+    x.passi = x.passi.map((p) => ({ ...p, tempo: p.tempo * k }))
+    x.hf = x.punti / x.tempo
+  }
   const consigliata = tutte.reduce((a, b) => (b.hf > a.hf ? b : a)).stile
-  return { tutte, consigliata }
+  return { tutte, consigliata, riferimento: rif }
+}
+
+/* ---------------- segni sul disegno ---------------- */
+
+/** Profondità standard per livello (FITDS): dalla fault line più bassa al parapalle. */
+export function profonditaDaLivello(livello: string | undefined) {
+  const l = (livello ?? '').toUpperCase()
+  if (/\bIII\b|LEVEL 3|LIVELLO 3/.test(l)) return 30
+  if (/\bII\b|LEVEL 2|LIVELLO 2/.test(l)) return 20
+  return 25
+}
+
+/** Metri per unità del disegno: nei disegni FITDS il campo (fault line → parapalle) occupa circa il 70% dell'altezza. */
+const metriPerUnita = (profondita: number) => profondita / 700
+
+/** Dai segni allo schema: ogni posizione prende i bersagli segnati dopo di lei; metri dalla scala del disegno. */
+export function schemaDaSegni(segni: Segno[], profondita: number, aspetto: number, base?: Partial<SchemaStage>): SchemaStage {
+  const k = metriPerUnita(profondita)
+  // le x sono in millesimi della larghezza: le riporto alla stessa unità delle y
+  const dist = (a: Segno, b: Segno) => Math.hypot((a.x - b.x) * aspetto, a.y - b.y) * k
+  const P = segni.find((x) => x.k === 'P')
+  const posizioni: (PosizioneSchema & { _s: Segno })[] = []
+  let prev: Segno | undefined = P
+  let n = 0
+  for (const sg of segni) {
+    if (sg.k === 'P') continue
+    if (sg.k === 'pos' || !posizioni.length) {
+      const punto = sg.k === 'pos' ? sg : (P ?? sg)
+      posizioni.push({ id: lettera(posizioni.length), nome: punto.nome ?? '', metri: prev ? Math.round(dist(prev, punto)) : 0, ingaggio: 'auto', bersagli: [], _s: punto })
+      prev = punto
+      if (sg.k === 'pos') continue
+    }
+    const pos = posizioni[posizioni.length - 1]
+    n++
+    pos.bersagli.push({
+      id: String(n), tipo: sg.tipo ?? 'carta',
+      distanza: sg.d ?? Math.max(2, Math.min(profondita + 5, Math.round(dist(pos._s, sg)))),
+      vis: sg.vis ?? 'piena', mobile: sg.mobile,
+    })
+  }
+  return {
+    partenza: base?.partenza ?? '', lettura: base?.lettura, risposte: base?.risposte,
+    fonte: base?.fonte ?? 'manuale', aggiornato: new Date().toISOString(),
+    posizioni: posizioni.length ? posizioni.map(({ _s, ...p }) => { void _s; return p }) : schemaVuoto().posizioni,
+    segni, profondita,
+  }
+}
+
+/** Numeri e lettere da mostrare sui segni, nello stesso ordine dello schema. */
+export function etichetteSegni(segni: Segno[]): string[] {
+  const primaPos = segni.findIndex((x) => x.k === 'pos')
+  // bersagli segnati prima di ogni posizione si sparano dalla partenza: quella è la posizione A
+  let p = segni.some((x, i) => x.k === 'bers' && (primaPos < 0 || i < primaPos)) ? 1 : 0
+  let b = 0
+  return segni.map((x) => (x.k === 'P' ? 'P' : x.k === 'pos' ? lettera(p++) : String(++b)))
 }
 
 /* ---------------- AI ---------------- */
 
-const SISTEMA = `Sei un tiratore IPSC Grand Master, istruttore e Range Officer FITDS. Leggi disegni di stage IPSC e costruisci
-la strategia più veloce e sicura. Ragioni sempre così:
-- La FITDS progetta ogni stage sulla divisione Classic (10 colpi + 1 in canna se previsto): lo stage è diviso in stringhe
-  che non superano mai 10 colpi. Le stringhe ti dicono dove sono le posizioni e dove cade la ricarica naturale.
-- Carta = 2 colpi, metallo (popper, mini popper, piastre) = 1 colpo, no-shoot = 0.
-- Una posizione è il punto da cui ingaggi un gruppo di bersagli. L'ordine delle posizioni è il percorso; l'ordine dei
-  bersagli dentro la posizione è la sequenza di tiro.
-- Nei disegni FITDS i bersagli stanno tra 3 e 20 metri; le distanze non sono scritte: stimale dalle proporzioni.
-Rispondi SOLO con JSON valido, senza testo fuori.`
+const SISTEMA = `Sei un tiratore IPSC Grand Master, istruttore e Range Officer FITDS. Leggi i disegni degli stage e prepari
+la strategia più veloce e sicura. Regole di lettura dei disegni FITDS (sempre valide):
+- Il disegno si legge dal basso: in basso c'è la fault line più bassa e la zona di partenza, in alto (riga nera) il parapalle.
+  Il tiratore guarda verso l'alto (verso il parapalle). Destra è destra, sinistra è sinistra; salire nel disegno = avanzare,
+  scendere = arretrare (solo in rari casi di partenze vincolate si torna indietro).
+- La linea rossa è il perimetro dell'area di tiro (fault line): il tiratore si muove solo dentro di essa.
+- Distanze dalla fault line più bassa: 0–25 m (Level II 0–20 m, Level III 0–30 m). I metri non sono scritti: stimali dalle proporzioni.
+- Bersagli: sagoma ottagonale marrone = carta (2 colpi); sagoma bianca = no-shoot (non si spara, 0 colpi);
+  sagoma azzurra/blu a birillo = popper o mini popper (1 colpo); quadrato o cerchio metallico = piastra (1 colpo).
+  Pannelli azzurri = muri e ostacoli che coprono la vista; barili neri = coperture.
+- La FITDS progetta ogni stage sulla divisione Classic: le stringhe non superano mai 10 colpi.
+  Le posizioni e i punti di ricarica si leggono da come i bersagli sono raggruppati a pacchetti di massimo 10 colpi.
+- Una posizione è il punto dove il tiratore si ferma (o passa) per ingaggiare un gruppo di bersagli; l'ordine delle
+  posizioni è il percorso più veloce; l'ordine dei bersagli è la sequenza di tiro.
+Coordinate: x e y vanno da 0 a 1000 sull'immagine (0,0 = angolo in alto a sinistra), punta il centro dell'oggetto.
+Rispondi SOLO con JSON valido e compatto.`
+
+const FORMATO = `{"lettura":"max 3 frasi","partenza":{"x":0,"y":0,"nota":"dove e come"},
+"posizioni":[{"x":0,"y":0,"nome":"breve","bersagli":[{"id":"1","tipo":"carta|mini|popper|miniPopper|piastra","x":0,"y":0,"vis":"piena|parziale|sporgersi"}]}],
+"domande":[{"domanda":"...","opzioni":["...","..."]}]}`
+
+/** Esempio risolto da un tiratore (stage 3, 3ª prova Winter MA5, Bassiano): insegna all'AI come si legge un disegno FITDS. */
+const ESEMPIO_1 = {
+  url: 'esempi/fitds-stage-1.jpg',
+  testo: `Stage Medium course, 22 colpi minimi, 110 punti. Bersagli dal briefing: 10 carta, 2 popper, 1 no-shoot.
+Partenza: al tavolo, arma scarica sul tavolo. Leggi il disegno e rispondi con il JSON.`,
+  risposta: JSON.stringify({
+    lettura: 'Partenza al tavolo in basso; percorso in senso orario: prima i bersagli vicini a destra dietro i barili e il muro, poi l’angolo in basso a sinistra, risalita sul lato sinistro per i popper e la carta dietro il muro, infine il fondo al centro e a destra. Due stringhe naturali da 10: A+B+C(popper) e C+D+E.',
+    partenza: { x: 312, y: 684, nota: 'al tavolo, arma scarica' },
+    posizioni: [
+      { x: 454, y: 711, nome: 'in basso, a destra del muro centrale', bersagli: [
+        { id: '1', tipo: 'carta', x: 665, y: 655, vis: 'parziale' }, { id: '2', tipo: 'carta', x: 623, y: 635, vis: 'piena' }, { id: '3', tipo: 'carta', x: 492, y: 603, vis: 'piena' }] },
+      { x: 117, y: 720, nome: 'angolo in basso a sinistra', bersagli: [{ id: '4', tipo: 'carta', x: 61, y: 626, vis: 'piena' }] },
+      { x: 179, y: 576, nome: 'lato sinistro, dietro il muro lungo', bersagli: [
+        { id: '5', tipo: 'popper', x: 71, y: 302, vis: 'piena' }, { id: '6', tipo: 'popper', x: 93, y: 284, vis: 'piena' },
+        { id: '7', tipo: 'carta', x: 462, y: 533, vis: 'parziale' }, { id: '8', tipo: 'carta', x: 177, y: 320, vis: 'piena' }] },
+      { x: 442, y: 450, nome: 'in fondo al centro', bersagli: [
+        { id: '9', tipo: 'carta', x: 467, y: 351, vis: 'piena' }, { id: '10', tipo: 'carta', x: 429, y: 176, vis: 'piena' }, { id: '11', tipo: 'carta', x: 312, y: 340, vis: 'piena' }] },
+      { x: 533, y: 490, nome: 'in fondo a destra', bersagli: [{ id: '12', tipo: 'carta', x: 664, y: 385, vis: 'piena' }] },
+    ],
+    domande: [],
+  }),
+}
+
+async function immagineEsempio(url: string): Promise<{ mime: string; base64: string } | undefined> {
+  try {
+    const r = await fetch(import.meta.env.BASE_URL + url)
+    if (!r.ok) return undefined
+    const b = new Uint8Array(await r.arrayBuffer())
+    let bin = ''
+    for (let i = 0; i < b.length; i += 0x8000) bin += String.fromCharCode(...b.subarray(i, i + 0x8000))
+    return { mime: 'image/jpeg', base64: btoa(bin) }
+  } catch { return undefined }
+}
 
 function briefing(s: StageLetto) {
   const b = s.bersagli
@@ -370,16 +524,6 @@ Partenza: ${s.posizionePartenza}. Pronto: ${s.prontoTiratore} / ${s.prontoArma}.
 Procedura: ${s.procedura}
 Note: ${s.note}`
 }
-
-const FORMATO = `{
-  "lettura": "2-3 frasi: com'è fatto lo stage, percorso, insidie",
-  "partenza": "dove e come si parte",
-  "posizioni": [
-    {"nome": "descrizione breve del punto (es. 'davanti ai barili, a destra del muro')", "metri": metri dalla posizione precedente (la prima dalla partenza, 0 se si spara dalla partenza),
-     "bersagli": [{"id": "etichetta del disegno o numero", "tipo": "carta|mini|popper|miniPopper|piastra", "distanza": metri, "vis": "piena|parziale|sporgersi", "mobile": false}]}
-  ],
-  "domande": [{"domanda": "...", "opzioni": ["...", "...", "..."]}]
-}`
 
 function leggiDomande(raw: unknown) {
   if (!Array.isArray(raw)) return []
@@ -392,55 +536,50 @@ function leggiDomande(raw: unknown) {
 }
 export interface Domanda { id: string; domanda: string; opzioni: string[] }
 
-/** Prima lettura: schema ragionato a stringhe e domande mirate su ciò che cambia la strategia. */
-export async function leggiStageAI(img: { url: string }, s: StageLetto, profilo: Profilo) {
-  const cfg = await getConfigAI()
-  if (!cfg?.chiave) throw new ErroreAI('Collega un assistente AI in Impostazioni.')
-  const testo = `${briefing(s)}
-
-Il tiratore è in ${profilo.divisione} (${capienzaDi(profilo)} colpi nel caricatore), classe ${profilo.classe}.
-
-Leggi il disegno e costruisci lo schema: posizioni nell'ordine del percorso più veloce, bersagli nell'ordine di ingaggio.
-Usa la regola delle stringhe da massimo 10 colpi per capire come lo stage è stato pensato. Il totale dei colpi deve fare ${s.colpi}
-e i bersagli per tipo devono corrispondere al briefing. Usa gli id scritti nel disegno; se non ce ne sono, numera i bersagli 1, 2, 3…
-nell'ordine in cui li ingaggeresti.
-
-Poi scrivi da 3 a 6 "domande" a scelta rapida (2-4 opzioni brevi) SOLO su ciò che il disegno non chiarisce e che cambia la strategia:
-da quale posizione si vede davvero un bersaglio, distanze tra posizioni e dei bersagli più lontani, ostacoli che coprono,
-attivazioni (popper che attivano mobili), se un bersaglio si può ingaggiare in movimento. Cita sempre i bersagli con il loro id
-e dove sono ("il 7, sul muro al centro").
-
-Rispondi con questo JSON, compatto (senza spazi o a capo inutili), con "lettura" di massimo 3 frasi:
-${FORMATO}`
-  const risposta = await chiedi(cfg, { sistema: SISTEMA, testo, immagine: { mime: 'image/jpeg', base64: img.url.split(',')[1] }, maxToken: 12000 })
-  const raw = estraiJson(risposta) as Record<string, unknown>
-  const schema = normalizzaSchema(raw, 'ai')
-  if (!schema.posizioni.some((p) => p.bersagli.length)) throw new ErroreAI('L’AI non ha trovato bersagli nel disegno: costruisci lo schema a mano.')
-  return { schema, domande: leggiDomande(raw.domande) }
+/** Dalla risposta dell'AI (con coordinate) ai segni sul disegno. */
+function segniDaAI(raw: Record<string, unknown>): Segno[] {
+  const c = (v: unknown) => { const n = Number(v); return Number.isFinite(n) ? Math.min(1000, Math.max(0, n)) : null }
+  const out: Segno[] = []
+  const p = raw.partenza as Record<string, unknown> | undefined
+  if (p && c(p.x) != null && c(p.y) != null) out.push({ k: 'P', x: c(p.x)!, y: c(p.y)!, nome: typeof p.nota === 'string' ? p.nota : undefined })
+  for (const pos of (Array.isArray(raw.posizioni) ? raw.posizioni : []) as Record<string, unknown>[]) {
+    if (c(pos.x) == null || c(pos.y) == null) continue
+    out.push({ k: 'pos', x: c(pos.x)!, y: c(pos.y)!, nome: typeof pos.nome === 'string' ? pos.nome.slice(0, 60) : undefined })
+    for (const b of (Array.isArray(pos.bersagli) ? pos.bersagli : []) as Record<string, unknown>[]) {
+      const tipo = String(b.tipo ?? 'carta') as TipoBersaglio
+      if (tipo === 'noshoot' || c(b.x) == null || c(b.y) == null) continue
+      out.push({ k: 'bers', x: c(b.x)!, y: c(b.y)!, tipo: TIPI_SCHEMA.includes(tipo) ? tipo : 'carta', vis: b.vis === 'parziale' || b.vis === 'sporgersi' ? b.vis : 'piena', mobile: !!b.mobile })
+    }
+  }
+  return out
 }
 
-/** Seconda lettura con le risposte del tiratore. */
-export async function rifinisciStageAI(img: { url: string }, s: StageLetto, profilo: Profilo, bozza: SchemaStage, risposte: { domanda: string; risposta: string }[]) {
+/** L'AI propone i segni (partenza, posizioni, bersagli in ordine) e qualche domanda; il tiratore li corregge sul disegno. */
+export async function leggiStageAI(img: { url: string; w: number; h: number }, s: StageLetto, profilo: Profilo, profondita: number) {
   const cfg = await getConfigAI()
   if (!cfg?.chiave) throw new ErroreAI('Collega un assistente AI in Impostazioni.')
-  const { fonte: _f, aggiornato: _a, risposte: _r, ...corpo } = bozza
-  void _f; void _a; void _r
+  const es = await immagineEsempio(ESEMPIO_1.url)
   const testo = `${briefing(s)}
+Profondità massima del campo per questo livello: ${profondita} m.
+Il tiratore è in ${profilo.divisione} (${capienzaDi(profilo)} colpi nel caricatore), classe ${profilo.classe}.
 
-Il tiratore è in ${profilo.divisione} (${capienzaDi(profilo)} colpi), classe ${profilo.classe}.
-La tua prima lettura:
-${JSON.stringify(corpo)}
-
-Risposte del tiratore:
-${risposte.map((r) => `- ${r.domanda} → ${r.risposta}`).join('\n')}
-
-Correggi lo schema tenendo conto delle risposte (sono più affidabili del disegno) e restituisci SOLO il JSON completo,
-con "domande": [] se non hai altri dubbi importanti:
+Segna sul disegno partenza, posizioni nell'ordine del percorso più veloce e bersagli nell'ordine di ingaggio, con le coordinate.
+Il totale dei colpi deve fare ${s.colpi} e i bersagli per tipo devono corrispondere al briefing (no-shoot esclusi).
+Usa le etichette del disegno come id se ci sono, altrimenti numera 1, 2, 3… nell'ordine di tiro.
+Poi 2–5 "domande" a scelta rapida solo su ciò che il disegno non chiarisce e cambia la strategia (visibilità da una posizione,
+attivazioni, tiro in movimento), citando i bersagli col loro id e dove sono.
+Rispondi con questo JSON:
 ${FORMATO}`
-  const risposta = await chiedi(cfg, { sistema: SISTEMA, testo, immagine: { mime: 'image/jpeg', base64: img.url.split(',')[1] }, maxToken: 12000 })
+  const risposta = await chiedi(cfg, {
+    sistema: SISTEMA, testo, maxToken: 12000,
+    immagine: { mime: 'image/jpeg', base64: img.url.split(',')[1] },
+    esempi: es ? [{ immagine: es, testo: ESEMPIO_1.testo, risposta: ESEMPIO_1.risposta }] : undefined,
+  })
   const raw = estraiJson(risposta) as Record<string, unknown>
-  const schema = normalizzaSchema(raw, 'ai')
-  return { schema: { ...schema, risposte: [...(bozza.risposte ?? []), ...risposte] }, domande: leggiDomande(raw.domande) }
+  const segni = segniDaAI(raw)
+  if (!segni.some((x) => x.k === 'bers')) throw new ErroreAI('L’AI non ha trovato bersagli nel disegno: segnali tu con un tocco.')
+  const schema = schemaDaSegni(segni, profondita, img.w / img.h, { lettura: typeof raw.lettura === 'string' ? raw.lettura : undefined, partenza: s.posizionePartenza, fonte: 'ai' })
+  return { schema, domande: leggiDomande(raw.domande) }
 }
 
 /** Consigli del coach sulla strategia calcolata, per il livello del tiratore. */
@@ -448,20 +587,22 @@ export async function consigliCoachAI(s: StageLetto, profilo: Profilo, sc: Schem
   const cfg = await getConfigAI()
   if (!cfg?.chiave) throw new ErroreAI('Collega un assistente AI in Impostazioni.')
   const t = profilo.tempi
+  const pos = sc.posizioni.map((p) => ({ id: p.id, dove: p.nome, metri: p.metri, bersagli: p.bersagli.map((b) => `${b.id} ${b.tipo} ${b.distanza}m${b.vis !== 'piena' ? ' ' + b.vis : ''}`) }))
   const testo = `${briefing(s)}
 
 Tiratore: ${profilo.divisione}, classe ${profilo.classe}, ${st.capienza} colpi nel caricatore.
 Tempi tecnici: estrazione ${t.estrazione}s, split ${t.split}s, transizione ${t.transizioneVicina}/${t.transizioneLontana}s, ricarica ${t.ricarica}s,
 entrata ${t.entrataPosizione}s, uscita ${t.uscitaPosizione}s, velocità ${t.velocitaMovimento} m/s.
 
-Schema dello stage: ${JSON.stringify(sc.posizioni)}
+Schema dello stage (già controllato dal tiratore, è affidabile): ${JSON.stringify(pos)}
 Strategia ${st.stile} calcolata: stringhe ${JSON.stringify(st.stringhe)}, ricariche ${JSON.stringify(st.ricariche)}, tempo stimato ${st.tempo.toFixed(1)} s.
 
 Scrivi da 5 a 8 consigli pratici e specifici per QUESTO stage e QUESTO tiratore, in italiano, ognuno di una o due frasi:
-dove guadagnare tempo (ingressi/uscite, tiro in movimento, ordine dei bersagli, dove guardare durante lo spostamento),
-dove non rischiare, dove fare la ricarica e come, cosa provare nel walkthrough. Cita posizioni (A, B…) e bersagli con il loro id.
+da dove partire e con quale piede, il percorso, dove guadagnare tempo (ingressi/uscite, tiro in movimento, ordine dei bersagli,
+dove guardare durante lo spostamento), dove non rischiare, dove fare il cambio caricatore senza restare aperto e come, cosa provare
+nel walkthrough. Cita posizioni (A, B…) e bersagli con il loro id.
 Rispondi SOLO con JSON: {"consigli": ["...", "..."]}`
-  const risposta = await chiedi(cfg, { sistema: SISTEMA, testo, maxToken: 1800 })
+  const risposta = await chiedi(cfg, { sistema: SISTEMA, testo, maxToken: 3000 })
   const raw = estraiJson(risposta) as Record<string, unknown>
   return Array.isArray(raw.consigli) ? (raw.consigli as unknown[]).map(String).filter(Boolean).slice(0, 8) : []
 }

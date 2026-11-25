@@ -87,7 +87,7 @@ export default function Impostazioni() {
         )}
       </section>
 
-      <p className="prose" style={{ fontSize: 12, textAlign: 'center' }}>Hitframe · versione 0.33.1 · © {new Date().getFullYear()} Giuseppe De Angelis</p>
+      <p className="prose" style={{ fontSize: 12, textAlign: 'center' }}>Hitframe · versione 0.34.0 · © {new Date().getFullYear()} Giuseppe De Angelis</p>
     </div>
   )
 }

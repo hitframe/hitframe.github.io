@@ -41,6 +41,8 @@ interface Richiesta {
   sistema: string
   testo: string
   immagine?: { base64: string; mime: string }
+  /** Esempi prima della domanda (immagine + testo, poi la risposta giusta): few-shot */
+  esempi?: { immagine?: { base64: string; mime: string }; testo: string; risposta: string }[]
   maxToken?: number
   /** 'testo' per risposte libere (chat); di base si chiede JSON */
   formato?: 'json' | 'testo'
@@ -88,6 +90,10 @@ export async function chiedi(cfg: ConfigAI, req: Richiesta): Promise<string> {
           'anthropic-dangerous-direct-browser-access': 'true',
         },
         body: JSON.stringify({ model: modello, max_tokens: maxToken, system: req.sistema, messages: [
+          ...(req.esempi ?? []).flatMap((e) => [
+            { role: 'user', content: [...(e.immagine ? [{ type: 'image', source: { type: 'base64', media_type: e.immagine.mime, data: e.immagine.base64 } }] : []), { type: 'text', text: e.testo }] },
+            { role: 'assistant', content: e.risposta },
+          ]),
           ...(req.storia ?? []).map((m) => ({ role: m.ruolo === 'utente' ? 'user' : 'assistant', content: m.testo })),
           { role: 'user', content },
         ] }),
@@ -111,6 +117,10 @@ export async function chiedi(cfg: ConfigAI, req: Richiesta): Promise<string> {
         ...(req.formato === 'testo' ? {} : { response_format: { type: 'json_object' } }),
         messages: [
           { role: 'system', content: req.sistema },
+          ...(req.esempi ?? []).flatMap((e) => [
+            { role: 'user', content: [{ type: 'text', text: e.testo }, ...(e.immagine ? [{ type: 'image_url', image_url: { url: `data:${e.immagine.mime};base64,${e.immagine.base64}` } }] : [])] },
+            { role: 'assistant', content: e.risposta },
+          ]),
           ...(req.storia ?? []).map((m) => ({ role: m.ruolo === 'utente' ? 'user' : 'assistant', content: m.testo })),
           { role: 'user', content },
         ],
@@ -138,6 +148,10 @@ async function chiediGemini(chiave: string, modello: string, req: Richiesta, max
   const body = JSON.stringify({
     system_instruction: { parts: [{ text: req.sistema }] },
     contents: [
+      ...(req.esempi ?? []).flatMap((e) => [
+        { role: 'user', parts: [...(e.immagine ? [{ inline_data: { mime_type: e.immagine.mime, data: e.immagine.base64 } }] : []), { text: e.testo }] },
+        { role: 'model', parts: [{ text: e.risposta }] },
+      ]),
       ...(req.storia ?? []).map((m) => ({ role: m.ruolo === 'utente' ? 'user' : 'model', parts: [{ text: m.testo }] })),
       { role: 'user', parts },
     ],

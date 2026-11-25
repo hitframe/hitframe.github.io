@@ -1,17 +1,17 @@
 import { useLiveQuery } from 'dexie-react-hooks'
 import { MSG_PDF, usePdfAnalisi } from '../sync/pdf'
 import AvvisoPdf from '../components/AvvisoPdf'
-import { AlertTriangle, ArrowLeft, ClipboardCheck, Dumbbell, Hand, Maximize2, Minimize2, Pencil, RefreshCw, Sparkles, Zap } from 'lucide-react'
+import { AlertTriangle, ArrowLeft, ClipboardCheck, Dumbbell, Hand, Sparkles, Zap } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import SchemaEditor from '../components/SchemaEditor'
+import SegniDisegno from '../components/SegniDisegno'
 import { Segmented, Sheet, useToast } from '../components/ui'
 import { getConfigAI } from '../ai/ai'
 import { chiaveMappa, immagineDisegno } from '../analisi/mappa'
 import { fmtHf, fmtS, partenzaSpeciale, stimaStage } from '../analisi/motore'
 import {
-  consigliCoachAI, controllaSchema, daMappa, leggiStageAI, NOMI_STILE, rifinisciStageAI, schemaVuoto, strategia, strategie,
-  type Domanda, type SchemaStage, type Stile, type Strategia,
+  colpiPosizione, consigliCoachAI, controllaSchema, leggiScorta, scortaPer, leggiStageAI, NOMI_STILE, profonditaDaLivello, schemaDaSegni, strategia, strategie,
+  type Domanda, type SchemaStage, type Segno, type Stile, type Strategia,
 } from '../analisi/schema'
 import { db, normalizzaProfilo, nowIso } from '../db/db'
 
@@ -23,9 +23,10 @@ export default function StudioStage() {
   const a = useLiveQuery(() => db.analisi.get(analisiId), [analisiId])
   const profilo = useLiveQuery(async () => normalizzaProfilo(await db.profilo.get('me')))
   const ai = useLiveQuery(() => getConfigAI())
+  const evento = useLiveQuery(async () => { const x = await db.analisi.get(analisiId); return x?.eventoId ? db.eventi.get(x.eventoId) : undefined }, [analisiId])
   const [img, setImg] = useState<{ url: string; w: number; h: number } | null>(null)
   const [erroreImg, setErroreImg] = useState(false)
-  const [grande, setGrande] = useState(false)
+  const [scorta, setScorta] = useState(leggiScorta)
   const [aiInCorso, setAiInCorso] = useState<string | null>(null)
   const [erroreAi, setErroreAi] = useState('')
   const [stile, setStile] = useState<Stile | null>(null)
@@ -49,11 +50,11 @@ export default function StudioStage() {
     return () => { ok = false }
   }, [a?.pdf, s?.pagina, s?.tabellaTopY, analisiId]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  const piani = useMemo(() => (schema && s && profilo ? strategie(schema, s, profilo) : null), [schema, s, profilo])
+  const piani = useMemo(() => (schema?.segni?.length && s && profilo ? strategie(schema, s, profilo, scorta) : null), [schema, s, profilo, scorta])
   const classic = useMemo(() => {
-    if (!schema || !s || !profilo || (profilo.armaDettagli?.capienza ?? 15) <= 10) return null
-    return strategia(schema, s, profilo, 'equilibrato', 10)
-  }, [schema, s, profilo])
+    if (!schema?.segni?.length || !s || !profilo || (profilo.armaDettagli?.capienza ?? 15) <= 10) return null
+    return strategia(schema, s, profilo, 'equilibrato', 10, scortaPer('equilibrato', schema, scorta))
+  }, [schema, s, profilo, scorta])
 
   if (a === undefined || !profilo) return <div className="page" />
   if (!a || !sez || !s) {
@@ -68,7 +69,15 @@ export default function StudioStage() {
   const stima = stimaStage(s, profilo)
   const scelto: Stile = stile ?? piani?.consigliata ?? 'equilibrato'
   const piano: Strategia | null = piani?.tutte.find((x) => x.stile === scelto) ?? null
-  const avvisi = schema ? controllaSchema(schema, s) : []
+  const avvisi = schema?.segni?.length ? controllaSchema(schema, s) : []
+  const profondita = schema?.profondita ?? profonditaDaLivello(sez.info.livello || evento?.gara?.livello)
+  const segni: Segno[] = schema?.segni ?? []
+  // distanze calcolate per ogni segno-bersaglio (stesso ordine dello schema)
+  const distanze: (number | null)[] = (() => {
+    const ds = schema?.posizioni.flatMap((p) => p.bersagli.map((b) => b.distanza)) ?? []
+    let j = 0
+    return segni.map((x) => (x.k === 'bers' ? ds[j++] ?? null : null))
+  })()
   const senzaAbilita = !profilo.abilita || Object.keys(profilo.abilita).length < 5
 
   async function salva(sc: SchemaStage | null) {
@@ -77,15 +86,19 @@ export default function StudioStage() {
     else delete schemi[chiave]
     await db.analisi.update(analisiId, { schemi })
   }
-  // ogni modifica allo schema rende vecchi i consigli del coach
-  const modifica = (sc: SchemaStage) => void salva({ ...sc, coach: undefined })
+  // ogni segno cambia lo schema e rende vecchi i consigli del coach
+  const cambiaSegni = (nuovi: Segno[], prof = profondita) => {
+    if (!img) return
+    void salva(schemaDaSegni(nuovi, prof, img.w / img.h, { lettura: schema?.lettura, partenza: schema?.partenza ?? s!.posizionePartenza, risposte: schema?.risposte, fonte: schema?.fonte ?? 'manuale' }))
+  }
 
   async function leggiConAI() {
     if (!img || !profilo) return
+    if (segni.length && !confirm('L’AI rifà tutti i segni da capo. Continuare?')) return
     setErroreAi('')
-    setAiInCorso('Leggo il disegno e ragiono sulle stringhe…')
+    setAiInCorso('L’AI sta leggendo il disegno…')
     try {
-      const r = await leggiStageAI(img, s!, profilo)
+      const r = await leggiStageAI(img, s!, profilo, profondita)
       await salva(r.schema)
       setRisposte({}); setPasso(0)
       setDomande(r.domande.length ? r.domande : null)
@@ -104,20 +117,13 @@ export default function StudioStage() {
   }
 
   async function applica(ris = risposte) {
-    if (!img || !schema || !domande || !profilo) return
+    if (!schema || !domande) return
     const date = domande.filter((d) => ris[d.id] && ris[d.id] !== 'Non so').map((d) => ({ domanda: d.domanda, risposta: ris[d.id] }))
-    if (!date.length) { setDomande(null); return }
-    setErroreAi('')
-    setAiInCorso('Correggo lo schema con le tue risposte…')
-    try {
-      const r = await rifinisciStageAI(img, s!, profilo, schema, date)
-      await salva(r.schema)
-      setRisposte({}); setPasso(0)
-      if (r.domande.length) { setDomande(r.domande); toast('Ancora qualche dubbio') }
-      else { setDomande(null); toast('Schema aggiornato con le tue risposte') }
-    } catch (e) {
-      setErroreAi(e instanceof Error ? e.message : 'Correzione non riuscita')
-    } finally { setAiInCorso(null) }
+    setDomande(null); setRisposte({}); setPasso(0)
+    if (!date.length) return
+    // le risposte vanno al coach; i segni li sistemi tu sul disegno
+    await salva({ ...schema, risposte: [...(schema.risposte ?? []), ...date] })
+    toast('Risposte salvate: il coach ne terrà conto')
   }
 
   async function coach(p: Strategia) {
@@ -167,7 +173,6 @@ export default function StudioStage() {
     } else toast('Drill creato in Allenamento')
   }
 
-  const vecchiaMappa = a.mappe?.[chiave]
 
   return (
     <div className="page">
@@ -213,54 +218,45 @@ export default function StudioStage() {
       ) : !img ? (
         <div className="card">Carico il disegno…</div>
       ) : (
-        <section className={`card disegno-studio${grande ? ' grande' : ''}`}>
-          <div className="disegno-scroll"><img src={img.url} alt={`Disegno dello stage ${s.numero}`} /></div>
-          <button type="button" className="btn ghost disegno-zoom" onClick={() => setGrande(!grande)} aria-label={grande ? 'Rimpicciolisci il disegno' : 'Ingrandisci il disegno'}>
-            {grande ? <Minimize2 size={18} /> : <Maximize2 size={18} />}
-          </button>
+        <section className="card form">
+          <div className="card-title" style={{ marginBottom: 0 }}><span>Segna lo stage</span></div>
+          {!segni.length && (
+            <p className="prose" style={{ margin: 0, fontSize: 14 }}>
+              Come a penna: <b>P</b> dove parti, <b>A, B, C…</b> dove ti fermi, <b>1, 2, 3…</b> i bersagli nell’ordine in cui li spari.
+              Il disegno si legge dal basso (partenza) verso il parapalle. Le stringhe e il cambio caricatore li calcolo io.
+            </p>
+          )}
+          {ai?.chiave && (
+            <button className={`btn${segni.length ? '' : ' primary'}`} onClick={leggiConAI} disabled={!!aiInCorso}>
+              <Sparkles size={18} className={aiInCorso ? 'spin' : ''} /> {aiInCorso ? 'L’AI sta leggendo…' : segni.length ? 'Rifai i segni con l’AI' : 'Fai una proposta con l’AI'}
+            </button>
+          )}
+          {schema && !schema.segni?.length && schema.posizioni.some((p) => p.bersagli.length) && (
+            <p className="meta" style={{ margin: 0 }}>Questo stage ha uno schema della versione precedente: rifallo con i segni sul disegno.</p>
+          )}
+          <SegniDisegno img={img} segni={segni} distanze={distanze} profondita={profondita}
+            onChange={(n) => cambiaSegni(n)} onProfondita={(m) => cambiaSegni(segni, m)} />
+          {schema?.segni?.length ? (
+            <div className="stringhe">
+              {schema.posizioni.filter((p) => p.bersagli.length).map((p) => (
+                <div key={p.id} className="stringa"><b>{p.id}</b><span>{p.bersagli.map((b) => b.id).join(', ')}{p.nome ? ` · ${p.nome}` : ''}</span><i>{colpiPosizione(p)} colpi · {p.metri} m</i></div>
+              ))}
+            </div>
+          ) : null}
+          {avvisi.length > 0 && <div role="status" className="schema-avviso"><AlertTriangle size={16} /> <span>{avvisi.join(' ')}</span></div>}
+          {schema?.lettura && <p className="prose" style={{ margin: 0, fontSize: 13.5 }}><b>Lettura dell’AI:</b> {schema.lettura}</p>}
+          {schema?.risposte?.length ? (
+            <details className="guida"><summary>Le tue risposte all’AI ({schema.risposte.length})</summary>
+              <ul className="drill" style={{ marginLeft: 0 }}>{schema.risposte.map((r, i) => <li key={i}>{r.domanda} <b>{r.risposta}</b></li>)}</ul>
+            </details>
+          ) : null}
+          {segni.length > 0 && (
+            <div className="row"><span className="spacer" /><button className="btn ghost" onClick={() => { if (confirm('Cancellare tutti i segni di questo stage?')) void salva(null) }}>Ricomincia</button></div>
+          )}
+          {erroreAi && <div role="alert" className="schema-avviso"><AlertTriangle size={16} /> <span>{erroreAi}</span></div>}
         </section>
       )}
       {!a.pdf && statoPdf !== 'pronto' && <p className="meta" style={{ margin: 0 }}>{MSG_PDF[statoPdf]}</p>}
-
-      <section className="card form">
-        <div className="card-title" style={{ marginBottom: 0 }}><span>Schema dello stage</span>
-          {schema && ai?.chiave && img && <button className="btn ghost" style={{ minHeight: 36 }} onClick={leggiConAI} disabled={!!aiInCorso}><RefreshCw size={16} /> Rileggi</button>}
-        </div>
-        {!schema ? (
-          <>
-            <p className="prose" style={{ margin: 0 }}>
-              Le posizioni nell’ordine in cui le fai e, per ognuna, i bersagli nell’ordine in cui li ingaggi.
-              Lo stage è pensato a stringhe di massimo 10 colpi (Classic): da lì escono posizioni e ricariche.
-              {ai?.chiave ? ' L’AI legge il disegno, ti fa le domande che servono e prepara lo schema; tu correggi con un tocco.' : ' Collega un’AI in Impostazioni per la lettura automatica, oppure costruiscilo tu.'}
-            </p>
-            <div className="row">
-              {ai?.chiave
-                ? <button className="btn primary" onClick={leggiConAI} disabled={!!aiInCorso || !img}><Sparkles size={18} className={aiInCorso ? 'spin' : ''} /> {aiInCorso ? 'L’AI sta leggendo…' : 'Leggi con l’AI'}</button>
-                : <Link to="/impostazioni" className="btn"><Sparkles size={18} /> Collega un’AI</Link>}
-              <button className="btn" onClick={() => void salva((vecchiaMappa && daMappa(vecchiaMappa, s)) || schemaVuoto(s))}><Pencil size={18} /> Costruiscilo tu</button>
-            </div>
-          </>
-        ) : (
-          <>
-            {schema.lettura && <p className="prose" style={{ margin: 0, fontSize: 14 }}><b>Lettura:</b> {schema.lettura}</p>}
-            <SchemaEditor schema={schema} onChange={modifica} />
-            {avvisi.length > 0 && (
-              <div role="status" className="schema-avviso"><AlertTriangle size={16} /> <span>{avvisi.join(' ')}</span></div>
-            )}
-            <p className="meta" style={{ margin: 0 }}>Tocca un bersaglio per distanza, visibilità, ordine e posizione. Tocca i metri tra due posizioni per cambiarli.</p>
-            {schema.risposte?.length ? (
-              <details className="guida"><summary>Le tue risposte all’AI ({schema.risposte.length})</summary>
-                <ul className="drill" style={{ marginLeft: 0 }}>{schema.risposte.map((r, i) => <li key={i}>{r.domanda} <b>{r.risposta}</b></li>)}</ul>
-              </details>
-            ) : null}
-            <div className="row">
-              <span className="spacer" />
-              <button className="btn ghost" onClick={() => { if (confirm('Cancellare lo schema di questo stage?')) void salva(null) }}>Ricomincia</button>
-            </div>
-          </>
-        )}
-        {erroreAi && <div role="alert" className="schema-avviso"><AlertTriangle size={16} /> <span>{erroreAi}</span></div>}
-      </section>
 
       {piani && piano && (
         <>
@@ -278,6 +274,14 @@ export default function StudioStage() {
               {classic && classic.ricariche.length !== piano.ricariche.length ? ` Con ${piano.capienza} colpi ti ${piano.ricariche.length === 1 ? 'serve 1 ricarica' : `servono ${piano.ricariche.length} ricariche`}; un Classic (10 colpi) ne fa ${classic.ricariche.length}.` : ''}
             </p>
 
+            <div className="field" style={{ marginTop: 12 }}>
+              <span className="label">Colpi di scorta per i makeup</span>
+              <div className="chips">{(['auto', 0, 1, 2, 3] as const).map((n) => <button key={n} type="button" className={`chip${scorta === n ? ' on' : ''}`} onClick={() => { setScorta(n); try { localStorage.setItem('hf-colpi-scorta', String(n)) } catch { /* ignore */ } }}>{n === 'auto' ? 'Auto' : n}</button>)}</div>
+              <span className="meta">{piano.scorta === 0
+                ? 'Strategia al limite: puoi usare anche l’ultimo colpo e ricaricare a slide aperto.'
+                : `Il cambio caricatore è pianificato con almeno ${piano.scorta} ${piano.scorta === 1 ? 'colpo' : 'colpi'} in più per le ribattute: niente arma aperta, niente cambio d’emergenza.`}
+                {scorta === 'auto' ? ' Auto: aggressiva 0, equilibrata 1, prudente 2, più 1 ogni 3 ferri.' : ''}</span>
+            </div>
             <div className="label" style={{ marginTop: 14 }}>Stringhe</div>
             <div className="stringhe">
               {piano.stringhe.map((x) => (

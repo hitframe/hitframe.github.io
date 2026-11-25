@@ -79,7 +79,7 @@ export const CAPIENZA: Record<Divisione, number> = {
   Open: 27,
   Classic: 10,
   Revolver: 8,
-  Optics: 20,
+  Optics: 21,
   PCC: 30,
 }
 
