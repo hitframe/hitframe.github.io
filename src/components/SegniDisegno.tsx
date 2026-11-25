@@ -5,7 +5,7 @@
 import { Maximize2, Minimize2, Move, Trash2, Undo2 } from 'lucide-react'
 import { useRef, useState } from 'react'
 import { TIPI_BERSAGLIO, type TipoBersaglio } from '../analisi/mappa'
-import { DISTANZE, etichetteSegni, NOMI_VIS, type Segno, type Visibilita } from '../analisi/schema'
+import { DISTANZE, etichetteSegni, NOMI_MOV, NOMI_VIS, type Movimento, type Segno, type Visibilita } from '../analisi/schema'
 
 type Modo = 'P' | 'pos' | 'carta' | 'metallo' | 'modifica'
 const TIPI: TipoBersaglio[] = ['carta', 'mini', 'popper', 'miniPopper', 'piastra']
@@ -120,7 +120,7 @@ export default function SegniDisegno({ img, segni, distanze, profondita, onChang
           </svg>
           {segni.map((x, i) => (
             <button key={i} type="button"
-              className={`segno ${x.k}${x.k === 'bers' && TIPI_BERSAGLIO[x.tipo ?? 'carta'].metallo ? ' metallo' : ''}${x.vis && x.vis !== 'piena' ? ' parz' : ''}${sel === i ? ' sel' : ''}${attiva === i ? ' attiva' : ''}`}
+              className={`segno ${x.k}${x.k === 'bers' && TIPI_BERSAGLIO[x.tipo ?? 'carta'].metallo ? ' metallo' : ''}${x.vis && x.vis !== 'piena' ? ' parz' : ''}${x.mov ? ' mov' : ''}${sel === i ? ' sel' : ''}${attiva === i ? ' attiva' : ''}`}
               style={{ left: `${x.x / 10}%`, top: `${x.y / 10}%` }}
               onClick={(e) => scegli(i, e)}
               aria-label={x.k === 'P' ? 'Partenza' : x.k === 'pos' ? `Posizione ${etichette[i]}` : `Bersaglio ${etichette[i]}`}>
@@ -155,6 +155,7 @@ export default function SegniDisegno({ img, segni, distanze, profondita, onChang
             <>
               <div className="chips">{TIPI.map((t) => <button key={t} type="button" className={`chip${(s.tipo ?? 'carta') === t ? ' on' : ''}`} onClick={() => aggiorna({ tipo: t })}>{TIPI_BERSAGLIO[t].nome}</button>)}</div>
               <div className="chips">{(Object.keys(NOMI_VIS) as Visibilita[]).map((v) => <button key={v} type="button" className={`chip${(s.vis ?? 'piena') === v ? ' on' : ''}`} onClick={() => aggiorna({ vis: v })}>{NOMI_VIS[v]}</button>)}</div>
+              <div className="chips">{(Object.keys(NOMI_MOV) as Movimento[]).map((m) => <button key={m} type="button" className={`chip${(s.mov ?? 'fermo') === m ? ' on' : ''}`} onClick={() => aggiorna({ mov: m === 'fermo' ? undefined : m })}>{NOMI_MOV[m]}</button>)}</div>
               <div className="chips">
                 <button type="button" className={`chip${s.d == null ? ' on' : ''}`} onClick={() => aggiorna({ d: undefined })}>Dal disegno{distanze[sel] != null ? ` · ${distanze[sel]} m` : ''}</button>
                 {DISTANZE.map((d) => <button key={d} type="button" className={`chip${s.d === d ? ' on' : ''}`} onClick={() => aggiorna({ d })}>{d} m</button>)}

@@ -15,11 +15,18 @@ export type Visibilita = 'piena' | 'parziale' | 'sporgersi'
 export type Ingaggio = 'auto' | 'fermo' | 'movimento'
 export type Stile = 'aggressivo' | 'equilibrato' | 'prudente'
 
+export type Movimento = 'fermo' | 'arrivo' | 'uscita' | 'movimento'
+export const NOMI_MOV: Record<Movimento, string> = { fermo: 'Da fermo', arrivo: 'In arrivo', uscita: 'In uscita / indietreggiando', movimento: 'In movimento' }
+
 export interface BersaglioSchema {
   id: string
   tipo: TipoBersaglio
   distanza: number // metri
   vis: Visibilita
+  /** come lo spari: fermo, arrivando in posizione, uscendo (anche indietreggiando) o in movimento */
+  mov?: Movimento
+  /** da che lato della posizione è (per chi si sporge: lato debole o forte) */
+  lato?: 'sx' | 'dx'
   mobile?: boolean
   nota?: string
 }
@@ -31,6 +38,7 @@ export interface Segno {
   vis?: Visibilita
   /** distanza scelta a mano (metri): vince sul calcolo dal disegno */
   d?: number
+  mov?: Movimento
   mobile?: boolean
   nome?: string
 }
@@ -179,7 +187,7 @@ export function colpiAllaPartenza(s: StageLetto, cap: number) {
   return s.flag.armaScarica || s.flag.colpoNonCamerato ? cap : cap + 1
 }
 
-interface Ctx { cap: number; t: Profilo['tempi']; pend: number; st: typeof PARAMETRI[Stile]; scorta: number }
+interface Ctx { cap: number; t: Profilo['tempi']; pend: number; st: typeof PARAMETRI[Stile]; scorta: number; mano: 'destra' | 'sinistra' }
 
 const fattoreDist = (c: Ctx, d: number) => 1 + Math.max(0, d - 7) * c.pend
 
@@ -190,6 +198,7 @@ function tiraPosizione(c: Ctx, p: PosizioneSchema, colpiIn: number, entraInMovim
   const dettagli: string[] = []
   const ricaricheFermo: string[] = []
   p.bersagli.forEach((b, i) => {
+    let altriExtra = 0
     const n = colpiDi(b)
     // colpi di scorta per i makeup: mai pianificare di sparare l'ultimo colpo prima di un cambio (tranne alla fine dello stage)
     const ultimo = finale && i === p.bersagli.length - 1
@@ -209,8 +218,14 @@ function tiraPosizione(c: Ctx, p: PosizioneSchema, colpiIn: number, entraInMovim
       primo = (lontano ? c.t.transizioneLontana : c.t.transizioneVicina) * f
     }
     if (metallo) primo += Math.max(0, c.t.colpoPiastra - c.t.split) * f * 0.5
-    if (b.vis === 'sporgersi') primo += 0.25
-    let altri = (n - 1) * c.t.split * c.st.split * f
+    if (b.vis === 'sporgersi') {
+      primo += 0.25
+      // sporgersi dal lato debole (a sinistra per un destro, a destra per un mancino) costa di più
+      if (b.lato && (b.lato === 'sx') === (c.mano === 'destra')) primo += 0.15
+    }
+    // sparare in movimento: split un po' più lenti
+    if (b.mov === 'movimento' || (b.mov && b.mov !== 'fermo' && i > 0)) altriExtra += n * 0.04
+    let altri = (n - 1) * c.t.split * c.st.split * f + altriExtra
     if (b.vis !== 'piena') altri += n * 0.07
     if (b.mobile) primo += 0.3
     tempo += primo + altri
@@ -225,15 +240,19 @@ export function strategia(sc: SchemaStage, s: StageLetto, profilo: Profilo, stil
   const pos = sc.posizioni.filter((p) => p.bersagli.length)
   if (!pos.length) return null
   const t = profilo.tempi
-  const c: Ctx = { cap: capienza ?? capienzaDi(profilo), t, pend: profilo.pendenzaDistanza ?? 0.035, st: PARAMETRI[stile], scorta }
+  const c: Ctx = { cap: capienza ?? capienzaDi(profilo), t, pend: profilo.pendenzaDistanza ?? 0.035, st: PARAMETRI[stile], scorta, mano: profilo.manoForte ?? 'destra' }
   const inizio = colpiAllaPartenza(s, c.cap)
 
   const movimento = (i: number) => {
     const m = pos[i].metri
-    return m > 0 ? t.uscitaPosizione * c.st.uscita + m / Math.max(1.2, t.velocitaMovimento) : 0
+    // se l'ultimo bersaglio della posizione prima si spara uscendo, l'uscita è quasi gratis
+    const ultimo = i > 0 ? pos[i - 1].bersagli[pos[i - 1].bersagli.length - 1] : undefined
+    const usc = ultimo?.mov === 'uscita' || ultimo?.mov === 'movimento' ? 0.4 : c.st.uscita
+    return m > 0 ? t.uscitaPosizione * usc + m / Math.max(1.2, t.velocitaMovimento) : 0
   }
   // tiro in movimento: deciso dal tiratore o, in automatico, solo per bersagli vicini e visibili con stile aggressivo
-  const inMov = (p: PosizioneSchema) => p.ingaggio === 'movimento' || (p.ingaggio === 'auto' && stile === 'aggressivo' && p.metri > 0 && p.bersagli[0].distanza <= 8 && p.bersagli[0].vis === 'piena')
+  const inMov = (p: PosizioneSchema) => p.ingaggio === 'movimento' || p.bersagli[0].mov === 'arrivo' || p.bersagli[0].mov === 'movimento'
+    || (p.ingaggio === 'auto' && !p.bersagli[0].mov && stile === 'aggressivo' && p.metri > 0 && p.bersagli[0].distanza <= 8 && p.bersagli[0].vis === 'piena')
 
   // programmazione dinamica sulle ricariche in movimento: stato = colpi rimasti entrando nella posizione i
   type Nodo = { costo: number; prev: number | null; ricarica: boolean }
@@ -331,10 +350,11 @@ export function strategia(sc: SchemaStage, s: StageLetto, profilo: Profilo, stil
       corrente.colpi += colpiDi(b)
     }
     if (parti.length) corrente.parti.push(`${p.id}: ${parti.join(', ')}`)
-    const vis = p.bersagli.filter((b) => b.vis !== 'piena').map((b) => `${b.id} ${b.vis === 'sporgersi' ? '(sporgiti)' : '(parziale: mira precisa)'}`)
+    const vis = p.bersagli.filter((b) => b.vis !== 'piena').map((b) => `${b.id} ${b.vis === 'sporgersi' ? `(sporgiti${b.lato && (b.lato === 'sx') === (c.mano === 'destra') ? ', lato debole' : ''})` : '(parziale: mira precisa)'}`)
+    const inMovimento = p.bersagli.filter((b) => b.mov && b.mov !== 'fermo').map((b) => `${b.id} ${NOMI_MOV[b.mov!].toLowerCase()}`)
     passi.push({
       tipo: 'tiro', titolo: `${p.id}${p.nome ? ` · ${p.nome}` : ''}: ${colpiPosizione(p)} colpi`,
-      dettaglio: [`Ordine: ${p.bersagli.map((b) => b.id).join(' → ')}.`, vis.length ? `Attenzione: ${vis.join(', ')}.` : '', r.ricaricheFermo.length ? `Ricarica da fermo prima del ${r.ricaricheFermo.join(', ')}.` : ''].filter(Boolean).join(' '),
+      dettaglio: [`Ordine: ${p.bersagli.map((b) => b.id).join(' → ')}.`, inMovimento.length ? `In movimento: ${inMovimento.join(', ')}.` : '', vis.length ? `Attenzione: ${vis.join(', ')}.` : '', r.ricaricheFermo.length ? `Ricarica da fermo prima del ${r.ricaricheFermo.join(', ')}.` : ''].filter(Boolean).join(' '),
       tempo: r.tempo, posizione: p.id,
     })
   })
@@ -438,7 +458,8 @@ export function schemaDaSegni(segni: Segno[], profondita: number, aspetto: numbe
     pos.bersagli.push({
       id: String(n), tipo: sg.tipo ?? 'carta',
       distanza: sg.d ?? Math.max(2, Math.min(profondita + 5, Math.round(dist(pos._s, sg)))),
-      vis: sg.vis ?? 'piena', mobile: sg.mobile,
+      vis: sg.vis ?? 'piena', mobile: sg.mobile, mov: sg.mov,
+      lato: sg.x < pos._s.x - 15 ? 'sx' : sg.x > pos._s.x + 15 ? 'dx' : undefined,
     })
   }
   return {
@@ -474,35 +495,61 @@ la strategia più veloce e sicura. Regole di lettura dei disegni FITDS (sempre v
   Le posizioni e i punti di ricarica si leggono da come i bersagli sono raggruppati a pacchetti di massimo 10 colpi.
 - Una posizione è il punto dove il tiratore si ferma (o passa) per ingaggiare un gruppo di bersagli; l'ordine delle
   posizioni è il percorso più veloce; l'ordine dei bersagli è la sequenza di tiro.
+- Si può sparare un bersaglio arrivando in posizione ("in arrivo"/"in entrata"), uscendo o indietreggiando ("uscita"),
+  o in movimento tra due posizioni: quando un bersaglio è vicino e ben visibile sul percorso, è tempo guadagnato.
+- Bersagli mobili e attivazioni: il popper che attiva un mobile si spara prima, poi il mobile quando si muove.
+- Mano forte: per un tiratore destro sporgersi a sinistra di un ostacolo è il lato debole; per un mancino tutto è a specchio
+  (partenze, lato da cui sporgersi, senso del percorso).
+- Il disegno può essere 2D (muri azzurri) o 3D (pannelli a rete o legno, sagome su supporto); la lettura non cambia.
 Coordinate: x e y vanno da 0 a 1000 sull'immagine (0,0 = angolo in alto a sinistra), punta il centro dell'oggetto.
 Rispondi SOLO con JSON valido e compatto.`
 
 const FORMATO = `{"lettura":"max 3 frasi","partenza":{"x":0,"y":0,"nota":"dove e come"},
-"posizioni":[{"x":0,"y":0,"nome":"breve","bersagli":[{"id":"1","tipo":"carta|mini|popper|miniPopper|piastra","x":0,"y":0,"vis":"piena|parziale|sporgersi"}]}],
+"posizioni":[{"x":0,"y":0,"nome":"breve","bersagli":[{"id":"1","tipo":"carta|mini|popper|miniPopper|piastra","x":0,"y":0,"vis":"piena|parziale|sporgersi","mov":"fermo|arrivo|uscita|movimento","mobile":false}]}],
 "domande":[{"domanda":"...","opzioni":["...","..."]}]}`
 
-/** Esempio risolto da un tiratore (stage 3, 3ª prova Winter MA5, Bassiano): insegna all'AI come si legge un disegno FITDS. */
-const ESEMPIO_1 = {
-  url: 'esempi/fitds-stage-1.jpg',
-  testo: `Stage Medium course, 22 colpi minimi, 110 punti. Bersagli dal briefing: 10 carta, 2 popper, 1 no-shoot.
+/** Esempi risolti da un tiratore esperto: insegnano all'AI come si legge un disegno FITDS (2D e 3D). */
+const ESEMPI: { url: string; testo: string; risposta: string }[] = [
+  {
+    url: 'esempi/fitds-stage-1.jpg',
+    testo: `Esempio. Stage Medium course, 22 colpi minimi, 110 punti. Bersagli dal briefing: 10 carta, 2 popper, 1 no-shoot.
 Partenza: al tavolo, arma scarica sul tavolo. Leggi il disegno e rispondi con il JSON.`,
-  risposta: JSON.stringify({
-    lettura: 'Partenza al tavolo in basso; percorso in senso orario: prima i bersagli vicini a destra dietro i barili e il muro, poi l’angolo in basso a sinistra, risalita sul lato sinistro per i popper e la carta dietro il muro, infine il fondo al centro e a destra. Due stringhe naturali da 10: A+B+C(popper) e C+D+E.',
-    partenza: { x: 312, y: 684, nota: 'al tavolo, arma scarica' },
-    posizioni: [
-      { x: 454, y: 711, nome: 'in basso, a destra del muro centrale', bersagli: [
-        { id: '1', tipo: 'carta', x: 665, y: 655, vis: 'parziale' }, { id: '2', tipo: 'carta', x: 623, y: 635, vis: 'piena' }, { id: '3', tipo: 'carta', x: 492, y: 603, vis: 'piena' }] },
-      { x: 117, y: 720, nome: 'angolo in basso a sinistra', bersagli: [{ id: '4', tipo: 'carta', x: 61, y: 626, vis: 'piena' }] },
-      { x: 179, y: 576, nome: 'lato sinistro, dietro il muro lungo', bersagli: [
-        { id: '5', tipo: 'popper', x: 71, y: 302, vis: 'piena' }, { id: '6', tipo: 'popper', x: 93, y: 284, vis: 'piena' },
-        { id: '7', tipo: 'carta', x: 462, y: 533, vis: 'parziale' }, { id: '8', tipo: 'carta', x: 177, y: 320, vis: 'piena' }] },
-      { x: 442, y: 450, nome: 'in fondo al centro', bersagli: [
-        { id: '9', tipo: 'carta', x: 467, y: 351, vis: 'piena' }, { id: '10', tipo: 'carta', x: 429, y: 176, vis: 'piena' }, { id: '11', tipo: 'carta', x: 312, y: 340, vis: 'piena' }] },
-      { x: 533, y: 490, nome: 'in fondo a destra', bersagli: [{ id: '12', tipo: 'carta', x: 664, y: 385, vis: 'piena' }] },
-    ],
-    domande: [],
-  }),
-}
+    risposta: JSON.stringify({
+      lettura: 'Partenza al tavolo in basso; percorso in senso orario: prima i bersagli vicini a destra dietro i barili e il muro, poi l’angolo in basso a sinistra, risalita sul lato sinistro per i popper e la carta dietro il muro, infine il fondo al centro e a destra. Due stringhe naturali da 10: A+B+C(popper) e C+D+E.',
+      partenza: { x: 312, y: 684, nota: 'al tavolo, arma scarica' },
+      posizioni: [
+        { x: 454, y: 711, nome: 'in basso, a destra del muro centrale', bersagli: [
+          { id: '1', tipo: 'carta', x: 665, y: 655, vis: 'parziale' }, { id: '2', tipo: 'carta', x: 623, y: 635, vis: 'piena' }, { id: '3', tipo: 'carta', x: 492, y: 603, vis: 'piena' }] },
+        { x: 117, y: 720, nome: 'angolo in basso a sinistra', bersagli: [{ id: '4', tipo: 'carta', x: 61, y: 626, vis: 'piena' }] },
+        { x: 179, y: 576, nome: 'lato sinistro, dietro il muro lungo', bersagli: [
+          { id: '5', tipo: 'popper', x: 71, y: 302, vis: 'piena' }, { id: '6', tipo: 'popper', x: 93, y: 284, vis: 'piena' },
+          { id: '7', tipo: 'carta', x: 462, y: 533, vis: 'parziale' }, { id: '8', tipo: 'carta', x: 177, y: 320, vis: 'piena' }] },
+        { x: 442, y: 450, nome: 'in fondo al centro', bersagli: [
+          { id: '9', tipo: 'carta', x: 467, y: 351, vis: 'piena' }, { id: '10', tipo: 'carta', x: 429, y: 176, vis: 'piena' }, { id: '11', tipo: 'carta', x: 312, y: 340, vis: 'piena' }] },
+        { x: 533, y: 490, nome: 'in fondo a destra', bersagli: [{ id: '12', tipo: 'carta', x: 664, y: 385, vis: 'piena' }] },
+      ],
+      domande: [],
+    }),
+  },
+  {
+    url: 'esempi/fitds-stage-2.jpg',
+    testo: `Esempio annotato a mano da un tiratore (le scritte nere sono sue: numero = ordine di tiro, lettera = posizione; i metri e il tempo sono reali).
+Stage Short course 3D, 12 colpi: 5 carta (uno mobile), 2 popper, 1 no-shoot. Rispondi con il JSON della lettura corretta.`,
+    risposta: JSON.stringify({"lettura": "Short da 12 colpi in prospettiva 3D. Si parte da A in basso a destra: subito il T5 a destra (5 m) e il T4 in alto a destra. Spostamento di 8 m verso B: popper MP2 che attiva il T3 mobile, poi T2 e il T3 mentre si muove. Ultimo spostamento a sinistra su C: T1 (7 m) e il popper MP1 (12 m). Tempo reale del tiratore: 11 s.", "partenza": {"x": 693, "y": 815, "nota": "in A, dentro il box in basso a destra"}, "posizioni": [{"x": 693, "y": 815, "nome": "A, in basso a destra", "bersagli": [{"id": "1", "tipo": "carta", "x": 938, "y": 670, "vis": "piena"}, {"id": "2", "tipo": "carta", "x": 888, "y": 319, "vis": "piena"}]}, {"x": 381, "y": 656, "nome": "B, al centro del lato lungo", "bersagli": [{"id": "3", "tipo": "popper", "x": 702, "y": 247, "vis": "parziale"}, {"id": "4", "tipo": "carta", "x": 493, "y": 195, "vis": "piena"}, {"id": "5", "tipo": "carta", "x": 583, "y": 173, "vis": "piena", "mobile": true}]}, {"x": 173, "y": 656, "nome": "C, estremo sinistro", "bersagli": [{"id": "6", "tipo": "carta", "x": 94, "y": 361, "vis": "piena"}, {"id": "7", "tipo": "popper", "x": 155, "y": 253, "vis": "piena"}]}], "domande": []}),
+  },
+  {
+    url: 'esempi/fitds-stage-3.jpg',
+    testo: `Esempio annotato a mano da un tiratore (numero = ordine di tiro, lettera = posizione; metri e tempo reali).
+Stage Long course 3D, 32 colpi: 15 carta (una mobile), 2 popper, 4 no-shoot. Rispondi con il JSON della lettura corretta.`,
+    risposta: JSON.stringify({"lettura": "Long da 32 colpi in 3D. Partenza in A a sinistra del box: T1 e T2 a sinistra (5 m, il T2 coperto da un no-shoot). In B (angolo alto a sinistra) T3 e T4 a 5–6 m e il T10 lontano a destra (16 m). Lungo la fault line in alto: da C il popper MP1 che attiva il T7 mobile, poi T6 e T5 a sinistra e il T7; da D il popper MP2 e il T9; da E il gruppo di destra T12, T13, T11 e il T8 lontano a sinistra. Ultima posizione F in basso a destra: T15 e T14 con no-shoot. Tempo reale del tiratore: 26 s.", "partenza": {"x": 375, "y": 730, "nota": "in A, nel box in basso a sinistra"}, "posizioni": [{"x": 375, "y": 730, "nome": "A, box in basso a sinistra", "bersagli": [{"id": "1", "tipo": "carta", "x": 110, "y": 685, "vis": "piena"}, {"id": "2", "tipo": "carta", "x": 128, "y": 630, "vis": "parziale"}]}, {"x": 195, "y": 555, "nome": "B, angolo in alto a sinistra", "bersagli": [{"id": "3", "tipo": "carta", "x": 70, "y": 420, "vis": "parziale"}, {"id": "4", "tipo": "carta", "x": 118, "y": 335, "vis": "piena"}, {"id": "5", "tipo": "carta", "x": 602, "y": 255, "vis": "piena"}]}, {"x": 418, "y": 515, "nome": "C, centro sinistra sulla fault line in alto", "bersagli": [{"id": "6", "tipo": "popper", "x": 388, "y": 240, "vis": "piena"}, {"id": "7", "tipo": "carta", "x": 205, "y": 258, "vis": "piena"}, {"id": "8", "tipo": "carta", "x": 205, "y": 285, "vis": "piena"}, {"id": "9", "tipo": "carta", "x": 248, "y": 228, "vis": "piena", "mobile": true}]}, {"x": 655, "y": 515, "nome": "D, centro destra", "bersagli": [{"id": "10", "tipo": "popper", "x": 639, "y": 295, "vis": "parziale"}, {"id": "11", "tipo": "carta", "x": 512, "y": 262, "vis": "piena"}]}, {"x": 800, "y": 515, "nome": "E, angolo in alto a destra", "bersagli": [{"id": "12", "tipo": "carta", "x": 790, "y": 300, "vis": "piena"}, {"id": "13", "tipo": "carta", "x": 790, "y": 325, "vis": "piena"}, {"id": "14", "tipo": "carta", "x": 731, "y": 290, "vis": "parziale"}, {"id": "15", "tipo": "carta", "x": 432, "y": 255, "vis": "piena"}]}, {"x": 688, "y": 745, "nome": "F, in basso a destra", "bersagli": [{"id": "16", "tipo": "carta", "x": 875, "y": 698, "vis": "piena"}, {"id": "17", "tipo": "carta", "x": 835, "y": 688, "vis": "parziale"}]}], "domande": []}),
+  },
+  {
+    url: 'esempi/fitds-stage-4.jpg',
+    testo: `Esempio annotato a mano da un tiratore (numero = ordine di tiro, lettera = posizione; "in arrivo", "in entrata", "in movimento", "indietreggiando" = come si spara quel bersaglio; tempo reale).
+Stage Medium course 2D, 24 colpi: 10 carta, 4 mini popper, 2 no-shoot. Rispondi con il JSON della lettura corretta.`,
+    risposta: JSON.stringify({"lettura": "Medium da 24 colpi, disegno 2D classico. Partenza al centro (PART): si va subito in A a destra per i 4 mini popper e il T9 dietro i barili, sparato indietreggiando. B in basso: il T1 dietro i barili sparato arrivando. Poi C: T10 dietro barili con no-shoot. D: T2 e T3 a sinistra. E: T5 arrivando e T4 in movimento. F in fondo: T8 entrando, poi T7 e T6. Stringhe da 10: A+B+C, D+E+F. Tempo reale del tiratore: 16,3 s.", "partenza": {"x": 640, "y": 700, "nota": "PART, al centro del box"}, "posizioni": [{"x": 865, "y": 690, "nome": "A, punta destra", "bersagli": [{"id": "1", "tipo": "miniPopper", "x": 798, "y": 225, "vis": "piena"}, {"id": "2", "tipo": "miniPopper", "x": 826, "y": 180, "vis": "piena"}, {"id": "3", "tipo": "miniPopper", "x": 862, "y": 140, "vis": "piena"}, {"id": "4", "tipo": "miniPopper", "x": 903, "y": 115, "vis": "piena"}, {"id": "5", "tipo": "carta", "x": 925, "y": 515, "vis": "parziale", "mov": "uscita"}]}, {"x": 620, "y": 765, "nome": "B, in basso", "bersagli": [{"id": "6", "tipo": "carta", "x": 310, "y": 710, "vis": "parziale", "mov": "arrivo"}]}, {"x": 655, "y": 600, "nome": "C, corridoio centrale", "bersagli": [{"id": "7", "tipo": "carta", "x": 665, "y": 500, "vis": "parziale"}]}, {"x": 500, "y": 645, "nome": "D, dentro la U", "bersagli": [{"id": "8", "tipo": "carta", "x": 127, "y": 545, "vis": "piena"}, {"id": "9", "tipo": "carta", "x": 170, "y": 505, "vis": "piena"}]}, {"x": 515, "y": 530, "nome": "E, uscita della U a sinistra", "bersagli": [{"id": "10", "tipo": "carta", "x": 263, "y": 235, "vis": "piena", "mov": "arrivo"}, {"id": "11", "tipo": "carta", "x": 271, "y": 405, "vis": "piena", "mov": "movimento"}]}, {"x": 637, "y": 415, "nome": "F, in fondo", "bersagli": [{"id": "12", "tipo": "carta", "x": 562, "y": 100, "vis": "piena", "mov": "arrivo"}, {"id": "13", "tipo": "carta", "x": 459, "y": 105, "vis": "piena"}, {"id": "14", "tipo": "carta", "x": 347, "y": 155, "vis": "piena"}]}], "domande": []}),
+  },
+]
 
 async function immagineEsempio(url: string): Promise<{ mime: string; base64: string } | undefined> {
   try {
@@ -548,7 +595,9 @@ function segniDaAI(raw: Record<string, unknown>): Segno[] {
     for (const b of (Array.isArray(pos.bersagli) ? pos.bersagli : []) as Record<string, unknown>[]) {
       const tipo = String(b.tipo ?? 'carta') as TipoBersaglio
       if (tipo === 'noshoot' || c(b.x) == null || c(b.y) == null) continue
-      out.push({ k: 'bers', x: c(b.x)!, y: c(b.y)!, tipo: TIPI_SCHEMA.includes(tipo) ? tipo : 'carta', vis: b.vis === 'parziale' || b.vis === 'sporgersi' ? b.vis : 'piena', mobile: !!b.mobile })
+      const mv = String(b.mov ?? '')
+      out.push({ k: 'bers', x: c(b.x)!, y: c(b.y)!, tipo: TIPI_SCHEMA.includes(tipo) ? tipo : 'carta', vis: b.vis === 'parziale' || b.vis === 'sporgersi' ? b.vis : 'piena', mobile: !!b.mobile,
+        mov: mv === 'arrivo' || mv === 'uscita' || mv === 'movimento' ? mv : undefined })
     }
   }
   return out
@@ -558,12 +607,12 @@ function segniDaAI(raw: Record<string, unknown>): Segno[] {
 export async function leggiStageAI(img: { url: string; w: number; h: number }, s: StageLetto, profilo: Profilo, profondita: number) {
   const cfg = await getConfigAI()
   if (!cfg?.chiave) throw new ErroreAI('Collega un assistente AI in Impostazioni.')
-  const es = await immagineEsempio(ESEMPIO_1.url)
+  const esempi = (await Promise.all(ESEMPI.map(async (e) => ({ immagine: await immagineEsempio(e.url), testo: e.testo, risposta: e.risposta })))).filter((e) => e.immagine)
   const testo = `${briefing(s)}
 Profondità massima del campo per questo livello: ${profondita} m.
-Il tiratore è in ${profilo.divisione} (${capienzaDi(profilo)} colpi nel caricatore), classe ${profilo.classe}.
+Il tiratore è in ${profilo.divisione} (${capienzaDi(profilo)} colpi nel caricatore), classe ${profilo.classe}, ${profilo.manoForte === 'sinistra' ? 'mancino' : 'destro'}.
 
-Segna sul disegno partenza, posizioni nell'ordine del percorso più veloce e bersagli nell'ordine di ingaggio, con le coordinate.
+Ora il disegno da leggere (senza note del tiratore). Segna sul disegno partenza, posizioni nell'ordine del percorso più veloce e bersagli nell'ordine di ingaggio, con le coordinate.
 Il totale dei colpi deve fare ${s.colpi} e i bersagli per tipo devono corrispondere al briefing (no-shoot esclusi).
 Usa le etichette del disegno come id se ci sono, altrimenti numera 1, 2, 3… nell'ordine di tiro.
 Poi 2–5 "domande" a scelta rapida solo su ciò che il disegno non chiarisce e cambia la strategia (visibilità da una posizione,
@@ -573,7 +622,7 @@ ${FORMATO}`
   const risposta = await chiedi(cfg, {
     sistema: SISTEMA, testo, maxToken: 12000,
     immagine: { mime: 'image/jpeg', base64: img.url.split(',')[1] },
-    esempi: es ? [{ immagine: es, testo: ESEMPIO_1.testo, risposta: ESEMPIO_1.risposta }] : undefined,
+    esempi: esempi.length ? esempi : undefined,
   })
   const raw = estraiJson(risposta) as Record<string, unknown>
   const segni = segniDaAI(raw)
@@ -587,10 +636,10 @@ export async function consigliCoachAI(s: StageLetto, profilo: Profilo, sc: Schem
   const cfg = await getConfigAI()
   if (!cfg?.chiave) throw new ErroreAI('Collega un assistente AI in Impostazioni.')
   const t = profilo.tempi
-  const pos = sc.posizioni.map((p) => ({ id: p.id, dove: p.nome, metri: p.metri, bersagli: p.bersagli.map((b) => `${b.id} ${b.tipo} ${b.distanza}m${b.vis !== 'piena' ? ' ' + b.vis : ''}`) }))
+  const pos = sc.posizioni.map((p) => ({ id: p.id, dove: p.nome, metri: p.metri, bersagli: p.bersagli.map((b) => `${b.id} ${b.tipo} ${b.distanza}m${b.vis !== 'piena' ? ' ' + b.vis : ''}${b.mov && b.mov !== 'fermo' ? ' ' + b.mov : ''}${b.lato ? ' a ' + b.lato : ''}${b.mobile ? ' mobile' : ''}`) }))
   const testo = `${briefing(s)}
 
-Tiratore: ${profilo.divisione}, classe ${profilo.classe}, ${st.capienza} colpi nel caricatore.
+Tiratore: ${profilo.divisione}, classe ${profilo.classe}, ${profilo.manoForte === 'sinistra' ? 'mancino' : 'destro'}, ${st.capienza} colpi nel caricatore (colpi di scorta pianificati: ${st.scorta}).
 Tempi tecnici: estrazione ${t.estrazione}s, split ${t.split}s, transizione ${t.transizioneVicina}/${t.transizioneLontana}s, ricarica ${t.ricarica}s,
 entrata ${t.entrataPosizione}s, uscita ${t.uscitaPosizione}s, velocità ${t.velocitaMovimento} m/s.
 
