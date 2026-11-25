@@ -839,3 +839,4 @@ button.abilita-riga { width: 100%; border: 0; color: inherit; font: inherit; tex
 .segno.sel { outline: 3px solid #e5484d; outline-offset: 2px; z-index: 3; }
 .segni-pannello { display: flex; flex-direction: column; gap: 10px; padding: 12px; border-radius: 12px; border: 1px solid #4a4710; background: var(--surface-2); }
 .segno.bers.mov { border-color: #b4006e; box-shadow: 0 0 0 2px rgba(180,0,110,.35); }
+.timer-esiti .btn { flex: 1; justify-content: center; }

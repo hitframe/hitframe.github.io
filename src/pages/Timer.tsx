@@ -1,5 +1,5 @@
 import { useLiveQuery } from 'dexie-react-hooks'
-import { Mic, Play, RotateCcw, Save, Settings2, Square, X } from 'lucide-react'
+import { Check, Mic, Play, Repeat, RotateCcw, Save, Settings2, Square, X } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import ProvaForm from '../components/ProvaForm'
@@ -39,6 +39,17 @@ export default function Timer() {
   const [salva, setSalva] = useState(false)
   const [parFlash, setParFlash] = useState(false)
   const timerRef = useRef<ShotTimer | null>(null)
+  // ripetizione automatica: dopo ogni giro riparte da solo dopo il recupero
+  const [ciclo, setCiclo] = useState<{ attivo: boolean; recupero: number; giri: number }>({ attivo: false, recupero: 5, giri: 0 })
+  const [inCiclo, setInCiclo] = useState(false)
+  const [giro, setGiro] = useState(0)
+  const [conto, setConto] = useState<number | null>(null)
+  const [esiti, setEsiti] = useState<{ ok: number; ko: number }>({ ok: 0, ko: 0 })
+  const cicloRef = useRef({ inCiclo: false, attesa: 0 as number | undefined })
+  useEffect(() => {
+    getImp<Partial<typeof ciclo>>('timer-ciclo', {}).then((c) => setCiclo((p) => ({ ...p, ...c })))
+  }, [])
+  const salvaCiclo = (c: typeof ciclo) => { setCiclo(c); setImp('timer-ciclo', c) }
 
   // opzioni ricordate tra una sessione e l'altra
   useEffect(() => {
@@ -77,15 +88,53 @@ export default function Timer() {
     return parTxt.trim() && Number.isFinite(n) && n > 0 ? n : null
   })()
 
+  async function giroSingolo() {
+    setColpi([])
+    await timerRef.current?.avvia({ ...opz, par, microfono: modo === 'fuoco' })
+  }
+
   async function avvia() {
     setErrore('')
-    setColpi([])
     if (modo === 'bianco' && !par) {
       setErrore('In bianco serve un par time.')
       return
     }
-    await timerRef.current?.avvia({ ...opz, par, microfono: modo === 'fuoco' })
+    if (ciclo.attivo) {
+      cicloRef.current.inCiclo = true
+      setInCiclo(true)
+      setGiro(1)
+      setEsiti({ ok: 0, ko: 0 })
+    }
+    await giroSingolo()
   }
+
+  function fermaTutto() {
+    cicloRef.current.inCiclo = false
+    window.clearInterval(cicloRef.current.attesa)
+    setInCiclo(false)
+    setConto(null)
+    timerRef.current?.ferma()
+  }
+
+  // a fine giro, se la ripetizione è attiva, conta il recupero e riparte
+  useEffect(() => {
+    if (stato !== 'fermo' || !cicloRef.current.inCiclo) return
+    if (ciclo.giri && giro >= ciclo.giri) { cicloRef.current.inCiclo = false; setInCiclo(false); toast(`Serie finita: ${giro} ripetizioni`); return }
+    let resta = ciclo.recupero
+    setConto(resta)
+    window.clearInterval(cicloRef.current.attesa)
+    cicloRef.current.attesa = window.setInterval(() => {
+      resta -= 1
+      if (!cicloRef.current.inCiclo) { window.clearInterval(cicloRef.current.attesa); setConto(null); return }
+      if (resta <= 0) {
+        window.clearInterval(cicloRef.current.attesa)
+        setConto(null)
+        setGiro((g) => g + 1)
+        void giroSingolo()
+      } else setConto(resta)
+    }, 1000)
+  }, [stato]) // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => () => window.clearInterval(cicloRef.current.attesa), [])
 
   async function provaMicrofono() {
     setErrore('')
@@ -155,7 +204,10 @@ export default function Timer() {
       )}
 
       <section className={`timer-display${parFlash ? ' flash' : ''}`} aria-live="polite">
-        <div className="timer-stato">{ETICHETTE[stato]}{modo === 'fuoco' && attivo ? ` · ${colpi.length} colpi` : ''}</div>
+        <div className="timer-stato">
+          {inCiclo && conto != null ? `Recupero · riparte tra ${conto} s` : ETICHETTE[stato]}{modo === 'fuoco' && attivo ? ` · ${colpi.length} colpi` : ''}
+          {inCiclo && <> · ripetizione {giro}{ciclo.giri ? ` di ${ciclo.giri}` : ''}</>}
+        </div>
         <div className="timer-tempo">{modo === 'fuoco' ? fmt2(ultimo ?? 0) : par ? fmt2(par) : '—'}</div>
         <div className="timer-sub">
           {modo === 'fuoco' && colpi.length > 0 && <>Primo {fmt2(colpi[0])} · Split medio {colpi.length > 1 ? fmt2((colpi[colpi.length - 1] - colpi[0]) / (colpi.length - 1)) : '—'}</>}
@@ -170,6 +222,13 @@ export default function Timer() {
         )}
       </section>
 
+      {inCiclo && modo === 'bianco' && (
+        <div className="row timer-esiti">
+          <button className="btn grande" onClick={() => setEsiti((e) => ({ ...e, ok: e.ok + 1 }))}><Check size={20} /> Dentro il par · {esiti.ok}</button>
+          <button className="btn grande" onClick={() => setEsiti((e) => ({ ...e, ko: e.ko + 1 }))}><X size={20} /> Fuori · {esiti.ko}</button>
+        </div>
+      )}
+
       <div className="field">
         <label htmlFor="t-par">Par time (s){modo === 'fuoco' ? ' · facoltativo' : ''}</label>
         <input id="t-par" className="input" inputMode="decimal" value={parTxt} onChange={(e) => setParTxt(e.target.value)} placeholder={modo === 'fuoco' ? 'Nessuno' : 'Es. 1,10'} disabled={attivo} />
@@ -178,18 +237,38 @@ export default function Timer() {
       {errore && <div role="alert" className="card" style={{ borderColor: 'var(--accent)', color: 'var(--accent-strong)', fontWeight: 600 }}>{errore}</div>}
 
       <div className="row timer-azioni">
-        {attivo ? (
-          <button className="btn primary grande" onClick={() => timerRef.current?.ferma()}><Square size={22} /> Stop</button>
+        {attivo || inCiclo ? (
+          <button className="btn primary grande" onClick={fermaTutto}><Square size={22} /> Stop{inCiclo ? ' serie' : ''}</button>
         ) : (
           <button className="btn primary grande" onClick={avvia}><Play size={22} /> Start</button>
         )}
-        {!attivo && colpi.length > 0 && (
+        {!attivo && !inCiclo && colpi.length > 0 && (
           <button className="btn grande" onClick={() => { setColpi([]); setStato('pronto') }}><RotateCcw size={20} /> Azzera</button>
         )}
-        {!attivo && (colpi.length > 0 || (modo === 'bianco' && stato === 'fermo')) && (
+        {!attivo && !inCiclo && (colpi.length > 0 || (modo === 'bianco' && stato === 'fermo')) && (
           <button className="btn grande" onClick={() => setSalva(true)}><Save size={20} /> Salva prova</button>
         )}
       </div>
+
+      <section className="card form timer-ciclo">
+        <label className="row" style={{ gap: 10, fontWeight: 600 }}>
+          <input type="checkbox" checked={ciclo.attivo} disabled={inCiclo} onChange={(e) => salvaCiclo({ ...ciclo, attivo: e.target.checked })} />
+          <Repeat size={18} /> Ripeti da solo
+        </label>
+        {ciclo.attivo && !inCiclo && (
+          <>
+            <div className="field">
+              <span className="label">Recupero tra una ripetizione e l’altra</span>
+              <div className="chips">{[3, 5, 8, 10, 15, 20].map((r) => <button key={r} type="button" className={`chip${ciclo.recupero === r ? ' on' : ''}`} disabled={inCiclo} onClick={() => salvaCiclo({ ...ciclo, recupero: r })}>{r} s</button>)}</div>
+            </div>
+            <div className="field">
+              <span className="label">Ripetizioni</span>
+              <div className="chips">{[0, 5, 10, 20, 30].map((g) => <button key={g} type="button" className={`chip${ciclo.giri === g ? ' on' : ''}`} disabled={inCiclo} onClick={() => salvaCiclo({ ...ciclo, giri: g })}>{g === 0 ? 'Senza fine' : g}</button>)}</div>
+            </div>
+            <span className="hint">Premi Start una volta: dopo ogni ripetizione conta il recupero e riparte con un nuovo beep{opz.ritardo === 'casuale' ? ' casuale' : ''}. Stop ferma la serie.{modo === 'bianco' ? ' Durante il recupero puoi segnare se eri dentro il par.' : ''}</span>
+          </>
+        )}
+      </section>
 
       {modo === 'fuoco' && colpi.length > 0 && (
         <section className="card">
