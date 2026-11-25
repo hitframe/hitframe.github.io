@@ -65,7 +65,7 @@ export default function DrillIstruzioni({ d, personale }: { d: Drill; personale?
           : <DrillSchema schema={ist!.schema!} titolo={d.nome} />)}
       {haSchema && !personale?.stage && vista === '2d' && (
         <div className="legenda-schema">
-          <span><i style={{ background: 'var(--accent)', borderRadius: 99 }} /> tu</span>
+          <span><i style={{ background: 'var(--accent-fill)', borderRadius: 99 }} /> tu</span>
           <span><i style={{ background: '#c9a77a' }} /> carta</span>
           <span><i style={{ background: '#2f6fd6', borderRadius: 99 }} /> metallo</span>
           <span><i style={{ background: '#f4f4f2' }} /> no-shoot</span>

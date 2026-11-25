@@ -81,7 +81,7 @@ export default function StoricoMisure() {
       <PageHeader title="Storico misure" sub={`${righe.length} tempi da ${corse.length} run, ognuno con la sua data e la run da cui viene`} />
 
       {daVerificare.length > 0 && (
-        <section className="card" style={{ borderColor: "#4a4710" }}>
+        <section className="card" style={{ borderColor: "var(--accent-line)" }}>
           <div className="card-title"><span><AlertTriangle size={18} style={{ verticalAlign: -3, color: 'var(--accent)' }} /> {daVerificare.length === 1 ? '1 run con la data da verificare' : `${daVerificare.length} run con la data da verificare`}</span></div>
           <p className="prose" style={{ margin: '0 0 8px' }}>Per queste run la data non viene dal video: probabilmente è il giorno in cui le hai salvate. Aprile e scegli il giorno giusto, così lo storico è fedele.</p>
           <div className="list">

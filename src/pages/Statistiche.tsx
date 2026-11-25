@@ -232,7 +232,7 @@ export default function Statistiche() {
                 {perCorso.map((x) => (
                   <div key={x.c} style={{ display: 'grid', gridTemplateColumns: '64px 1fr 56px', gap: 10, alignItems: 'center', fontSize: 14 }}>
                     <span className="label">{x.c}</span>
-                    <div className="progresso" style={{ marginTop: 0, height: 10 }}><span style={{ width: `${x.pct}%`, background: 'var(--accent)' }} /></div>
+                    <div className="progresso" style={{ marginTop: 0, height: 10 }}><span style={{ width: `${x.pct}%`, background: 'var(--accent-fill)' }} /></div>
                     <b style={{ textAlign: 'right' }}>{f1(x.pct)}</b>
                   </div>
                 ))}

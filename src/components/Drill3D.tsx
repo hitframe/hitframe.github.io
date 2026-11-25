@@ -59,7 +59,7 @@ export default function Drill3D({ schema, altezza = 360 }: { schema: Schema; alt
         const acciaio = new THREE.MeshStandardMaterial({ color: '#2f6fd6', metalness: 0.3, roughness: 0.5 })
         const legno = new THREE.MeshLambertMaterial({ color: '#6b5236' })
         const paletto = new THREE.MeshLambertMaterial({ color: '#7b6040' })
-        const giallo = new THREE.MeshLambertMaterial({ color: '#e5ea1e' })
+        const giallo = new THREE.MeshLambertMaterial({ color: getComputedStyle(document.documentElement).getPropertyValue('--accent-fill').trim() || '#e5ea1e' })
 
         const ottagono = (w: number, h: number) => {
           const s = new THREE.Shape()

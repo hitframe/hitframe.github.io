@@ -81,7 +81,7 @@ export default function Quadro() {
                 {q.classi.map((c) => (
                   <div key={c.cls} style={{ display: 'grid', gridTemplateColumns: '108px 1fr 48px', gap: 10, alignItems: 'center', fontSize: 14 }}>
                     <span className="label" style={{ color: c.cls === q.livello.simile ? 'var(--accent)' : undefined }}>{NOMI_CLASSI[c.cls]}</span>
-                    <div className="progresso" style={{ marginTop: 0, height: 10 }}><span style={{ width: `${Math.min(100, c.mediana)}%`, background: c.cls === q.livello.simile ? 'var(--accent)' : 'var(--surface-3)', outline: '1px solid var(--border)' }} /></div>
+                    <div className="progresso" style={{ marginTop: 0, height: 10 }}><span style={{ width: `${Math.min(100, c.mediana)}%`, background: c.cls === q.livello.simile ? 'var(--accent-fill)' : 'var(--surface-3)', outline: '1px solid var(--border)' }} /></div>
                     <b style={{ textAlign: 'right' }}>{f1(c.mediana)}</b>
                   </div>
                 ))}

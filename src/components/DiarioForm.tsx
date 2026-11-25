@@ -113,7 +113,7 @@ export default function DiarioForm({
           <span className="label">Tag</span>
           <div className="chips">
             {TAG_SUGGERITI.map((t) => (
-              <button type="button" key={t} className="btn" style={{ minHeight: 36, padding: '0 12px', ...(v.tag.includes(t) ? { background: 'var(--accent)', borderColor: 'var(--accent)', color: 'var(--accent-ink)' } : {}) }}
+              <button type="button" key={t} className="btn" style={{ minHeight: 36, padding: '0 12px', ...(v.tag.includes(t) ? { background: 'var(--accent-fill)', borderColor: 'var(--accent-fill)', color: 'var(--accent-ink)' } : {}) }}
                 aria-pressed={v.tag.includes(t)} onClick={() => toggleTag(t)}>
                 {t}
               </button>

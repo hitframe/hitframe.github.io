@@ -138,7 +138,7 @@ export function Radar({ assi, valori, confronto, titolo }: { assi: string[]; val
         )
       })}
       {confronto && <polygon points={poly(confronto)} fill="none" stroke="var(--faint)" strokeWidth={1.5} strokeDasharray="4 3" />}
-      <polygon points={poly(valori)} fill="rgba(229,234,30,0.18)" stroke="var(--accent)" strokeWidth={2} />
+      <polygon points={poly(valori)} fill="rgba(var(--accent-rgb),0.18)" stroke="var(--accent)" strokeWidth={2} />
       {valori.map((v, i) => { const [x, y] = p(i, v); return <circle key={i} cx={x} cy={y} r={3.5} fill="var(--accent)"><title>{`${assi[i]}: ${v}/5`}</title></circle> })}
     </svg>
   )

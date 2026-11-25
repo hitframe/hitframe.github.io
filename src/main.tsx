@@ -4,6 +4,9 @@ import './styles.css'
 import App from './App'
 import { gestisciRitornoAccesso } from './google/auth'
 import { installaLinkEsterni } from './lib/desktop'
+import { applicaTema } from './lib/temi'
+
+applicaTema()
 
 // Ritorno dall'accesso Google: va gestito prima che parta il router
 const esito = gestisciRitornoAccesso()
