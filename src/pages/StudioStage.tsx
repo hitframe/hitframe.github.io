@@ -5,6 +5,8 @@ import { AlertTriangle, ArrowLeft, ClipboardCheck, Dumbbell, Hand, Sparkles, Zap
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import SegniDisegno from '../components/SegniDisegno'
+import ConfrontoStage from '../components/ConfrontoStage'
+import { useCorrezioneVideo } from '../analisi/useCorrezione'
 import { Segmented, Sheet, useToast } from '../components/ui'
 import { getConfigAI } from '../ai/ai'
 import { chiaveMappa, immagineDisegno } from '../analisi/mappa'
@@ -27,6 +29,8 @@ export default function StudioStage() {
   const [img, setImg] = useState<{ url: string; w: number; h: number } | null>(null)
   const [erroreImg, setErroreImg] = useState(false)
   const [scorta, setScorta] = useState(leggiScorta)
+  const correzione = useCorrezioneVideo()
+  const video = useLiveQuery(async () => (await db.corse.where('data').above('').toArray()).filter((c) => c.analisiId === analisiId && c.stage === numero), [analisiId, numero]) ?? []
   const [aiInCorso, setAiInCorso] = useState<string | null>(null)
   const [erroreAi, setErroreAi] = useState('')
   const [stile, setStile] = useState<Stile | null>(null)
@@ -50,7 +54,7 @@ export default function StudioStage() {
     return () => { ok = false }
   }, [a?.pdf, s?.pagina, s?.tabellaTopY, analisiId]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  const piani = useMemo(() => (schema?.segni?.length && s && profilo ? strategie(schema, s, profilo, scorta) : null), [schema, s, profilo, scorta])
+  const piani = useMemo(() => (schema?.segni?.length && s && profilo ? strategie(schema, s, profilo, scorta, correzione.fattore) : null), [schema, s, profilo, scorta, correzione.fattore])
   const classic = useMemo(() => {
     if (!schema?.segni?.length || !s || !profilo || (profilo.armaDettagli?.capienza ?? 15) <= 10) return null
     return strategia(schema, s, profilo, 'equilibrato', 10, scortaPer('equilibrato', schema, scorta))
@@ -270,6 +274,7 @@ export default function StudioStage() {
               <div className="stat"><div className="v">{piano.ricariche.length}</div><div className="l">{piano.ricariche.length === 1 ? 'ricarica' : 'ricariche'}{piano.ricariche.some((r) => !r.inMovimento) ? ' (una da fermo)' : ''}</div></div>
             </div>
             <p className="prose" style={{ margin: '10px 0 0', fontSize: 13 }}>
+              {correzione.n > 0 && <>Stime corrette con {correzione.n} {correzione.n === 1 ? 'video' : 'video'} di gara ({correzione.fattore >= 1 ? '+' : ''}{Math.round((correzione.fattore - 1) * 100)}%). </>}
               ★ = consigliata per te ({profilo.classe}, {profilo.divisione}): il miglior hit factor atteso tenendo conto di quanto rischi in punti.
               {classic && classic.ricariche.length !== piano.ricariche.length ? ` Con ${piano.capienza} colpi ti ${piano.ricariche.length === 1 ? 'serve 1 ricarica' : `servono ${piano.ricariche.length} ricariche`}; un Classic (10 colpi) ne fa ${classic.ricariche.length}.` : ''}
             </p>
@@ -318,6 +323,17 @@ export default function StudioStage() {
             <p className="prose" style={{ margin: '10px 0 0', fontSize: 12 }}>Tempi dai tuoi tempi tecnici; distanze e metri dallo schema. Conta la differenza tra le strategie più del valore assoluto.</p>
           </section>
         </>
+      )}
+
+      {!schema?.segni?.length ? null : video.length > 0 ? video.map((v) => <ConfrontoStage key={v.id} c={v} mostraRun />) : (
+        <section className="card">
+          <div className="card-title"><span>Dopo la gara</span></div>
+          <p className="prose" style={{ margin: 0 }}>
+            Analizza il video di questo stage con GDA Split e salvalo in Hitframe: se la data è quella della gara la run si collega da sola,
+            tu scegli lo stage {s.numero}. Qui vedrai tempo stimato e reale, posizione per posizione, e le stime dei prossimi stage si correggeranno sui tuoi tempi veri.
+          </p>
+          <Link to="/video" className="btn" style={{ marginTop: 10 }}>Vai ai video</Link>
+        </section>
       )}
 
       {aiInCorso && !domande && (

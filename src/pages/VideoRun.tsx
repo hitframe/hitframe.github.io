@@ -4,6 +4,7 @@ import { AlertTriangle, ArrowLeft, Check, Clapperboard, Link2, Trash2 } from 'lu
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { PageHeader, Segmented, useToast } from '../components/ui'
+import ConfrontoStage from '../components/ConfrontoStage'
 import { db } from '../db/db'
 import type { BersaglioColpo, Corsa, TipoBersaglioColpo, TipoIntervallo } from '../db/types'
 import { trovaDrill, tuttiDrill, majorDiDefault } from '../allenamento/servizi'
@@ -59,6 +60,13 @@ function VideoRun({ id }: { id?: string }) {
   const evento = eventi.find((e) => e.id === c?.eventoId)
   const risultato = useLiveQuery(async () => (c?.eventoId ? (await db.risultati.where('eventoId').equals(c.eventoId).first()) ?? null : null), [c?.eventoId])
   const analisi = useLiveQuery(async () => (c?.eventoId ? (await db.analisi.where('eventoId').equals(c.eventoId).first()) ?? null : null), [c?.eventoId])
+
+  // run nuova girata il giorno di una gara: la collego da solo a quella gara
+  useEffect(() => {
+    if (!nuova || !c || c.eventoId || !eventi.length) return
+    const g = eventi.find((e) => e.tipo === 'gara' && (e.gara?.giornoGara === c.data || e.data === c.data || (e.dataFine && e.data <= c.data && c.data <= e.dataFine)))
+    if (g?.id) setC((o) => (o ? { ...o, contesto: 'gara', eventoId: g.id! } : o))
+  }, [eventi.length]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const drill = c?.drillId ? trovaDrill(c.drillId, personali) : undefined
   const drillFuoco = useMemo(() => tuttiDrill(personali).filter((d) => d.modalita === 'fuoco'), [personali])
@@ -200,7 +208,10 @@ function VideoRun({ id }: { id?: string }) {
               {numeriStage.length ? (
                 <select className="select" value={c.stage ?? ''} onChange={(e) => set('stage', e.target.value ? Number(e.target.value) : null)}>
                   <option value="">Quale stage?</option>
-                  {numeriStage.map((n) => <option key={n} value={n}>Stage {n}</option>)}
+                  {numeriStage.map((n) => {
+                    const st = analisi?.lettura.sezioni[analisi.sezione]?.stages.find((x) => x.numero === n)
+                    return <option key={n} value={n}>Stage {n}{st ? ` · ${st.tipo} ${st.colpi} colpi` : ''}</option>
+                  })}
                 </select>
               ) : (
                 <input className="input" inputMode="numeric" placeholder="numero dello stage" value={c.stage ?? ''} onChange={(e) => set('stage', Number(e.target.value) || null)} />
@@ -223,6 +234,8 @@ function VideoRun({ id }: { id?: string }) {
           Partenza da mani in resa e arma in fondina: il primo colpo vale come estrazione
         </label>
       </section>
+
+      {c.contesto === 'gara' && analisi?.id && c.stage != null && <ConfrontoStage c={{ ...(c as Corsa), analisiId: analisi.id }} />}
 
       <section className="card">
         <div className="card-title" style={{ marginBottom: 4 }}><span>Colpi e intervalli</span></div>

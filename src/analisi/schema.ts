@@ -406,13 +406,13 @@ export function scortaPer(stile: Stile, sc: SchemaStage, scelta: Scorta) {
  * I tempi assoluti sono ancorati ai tuoi tempi reali di gara per quel tipo di stage: il motore decide le differenze
  * tra le strategie e quanto questo stage è più facile o più difficile della media, non il tempo da zero.
  */
-export function strategie(sc: SchemaStage, s: StageLetto, profilo: Profilo, scorta: Scorta = leggiScorta()) {
+export function strategie(sc: SchemaStage, s: StageLetto, profilo: Profilo, scorta: Scorta = leggiScorta(), correzione = 1) {
   const tutte = (['aggressivo', 'equilibrato', 'prudente'] as Stile[]).map((st) => strategia(sc, s, profilo, st, undefined, scortaPer(st, sc, scorta))).filter(Boolean) as Strategia[]
   if (!tutte.length) return null
   const eq = tutte.find((x) => x.stile === 'equilibrato') ?? tutte[0]
   const rif = stimaStage(s, profilo)
   const motore = Math.min(rif.obiettivo * 1.3, Math.max(rif.obiettivo * 0.8, eq.tempo))
-  const base = 0.6 * rif.obiettivo + 0.4 * motore
+  const base = (0.6 * rif.obiettivo + 0.4 * motore) * correzione
   const k = base / eq.tempo
   for (const x of tutte) {
     x.tempo *= k
@@ -654,4 +654,65 @@ Rispondi SOLO con JSON: {"consigli": ["...", "..."]}`
   const risposta = await chiedi(cfg, { sistema: SISTEMA, testo, maxToken: 3000 })
   const raw = estraiJson(risposta) as Record<string, unknown>
   return Array.isArray(raw.consigli) ? (raw.consigli as unknown[]).map(String).filter(Boolean).slice(0, 8) : []
+}
+
+/* ---------------- confronto con il video della gara ---------------- */
+
+export interface ConfrontoPosizione {
+  id: string
+  nome: string
+  colpi: number
+  arrivoStimato: number
+  arrivoReale: number | null
+  tiroStimato: number
+  tiroReale: number | null
+}
+export interface Confronto {
+  stile: Stile
+  stimato: number
+  reale: number
+  colpiAttesi: number
+  colpiRilevati: number
+  /** il confronto posizione per posizione regge solo se i colpi rilevati sono quelli dello schema */
+  perPosizione: ConfrontoPosizione[] | null
+}
+
+/**
+ * Confronta la run vera (colpi dal video) con la strategia: assegna i colpi alle posizioni nell'ordine dello schema
+ * e misura per ognuna quanto ci hai messo ad arrivarci (dal colpo prima) e quanto a sparare.
+ */
+export function confrontaRun(st: Strategia, sc: SchemaStage, colpi: number[], tempoFinale: number | null): Confronto {
+  const pos = sc.posizioni.filter((p) => p.bersagli.length)
+  const attesi = pos.reduce((t, p) => t + colpiPosizione(p), 0)
+  const reale = tempoFinale ?? colpi[colpi.length - 1] ?? 0
+  const stimati = pos.map((p) => {
+    const arrivo = st.passi.filter((x) => x.posizione === p.id && (x.tipo === 'partenza' || x.tipo === 'movimento')).reduce((t, x) => t + x.tempo, 0)
+    const tiro = st.passi.filter((x) => x.posizione === p.id && x.tipo === 'tiro').reduce((t, x) => t + x.tempo, 0)
+    return { arrivo, tiro }
+  })
+  let perPosizione: ConfrontoPosizione[] | null = null
+  if (colpi.length === attesi && attesi > 0) {
+    let k = 0
+    perPosizione = pos.map((p, i) => {
+      const n = colpiPosizione(p)
+      const primo = colpi[k], ultimo = colpi[k + n - 1]
+      const prima = k > 0 ? colpi[k - 1] : 0
+      k += n
+      // il primo colpo della posizione chiude l'arrivo; il resto è tiro
+      return { id: p.id, nome: p.nome, colpi: n, arrivoStimato: stimati[i].arrivo, arrivoReale: primo - prima, tiroStimato: stimati[i].tiro, tiroReale: ultimo - primo }
+    })
+  }
+  return { stile: st.stile, stimato: st.tempo, reale, colpiAttesi: attesi, colpiRilevati: colpi.length, perPosizione }
+}
+
+/**
+ * Correzione personale delle stime: dai video delle gare già collegati allo studio dello stage.
+ * Mediana di reale/stimato, pesata sul numero di video (con 1 video conta poco), tra -20% e +25%.
+ */
+export function correzioneDaVideo(rapporti: number[]) {
+  const r = rapporti.filter((x) => Number.isFinite(x) && x > 0.5 && x < 2).sort((a, b) => a - b)
+  if (!r.length) return { fattore: 1, n: 0 }
+  const med = r.length % 2 ? r[(r.length - 1) / 2] : (r[r.length / 2 - 1] + r[r.length / 2]) / 2
+  const peso = r.length / (r.length + 2)
+  return { fattore: Math.min(1.25, Math.max(0.8, 1 + (med - 1) * peso)), n: r.length }
 }
