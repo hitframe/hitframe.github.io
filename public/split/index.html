@@ -2219,8 +2219,32 @@ function muxMp4(V,A){
 // ---------- social: caption e hashtag con Claude ----------
 const SO={fmt:'reel',tone:'sobrio',busy:false};
 let SAMPLEp=null;
-function getSample(){if(!SAMPLEp)SAMPLEp=new Promise(res=>{try{if(window.claude&&window.claude.use){window.claude.use('sample').then(x=>res(x||null)).catch(()=>res(null));setTimeout(()=>res(null),11000);}else res(null);}catch(e){res(null);}});return SAMPLEp;}
-getSample().then(x=>{if(!x){$('soGo').classList.add('hide');$('soHint').textContent='Qui Claude non è raggiungibile: copia il testo e incollalo nell\'app Claude, ti scrive la caption lì.';}});
+// AI di Hitframe (Claude, Gemini o ChatGPT con la chiave messa in Impostazioni): stesso sito, stesso database
+function cfgHitframe(){return new Promise(res=>{try{
+  const apri=()=>{const r=indexedDB.open('hitframe');r.onsuccess=()=>{const d=r.result;try{if(!d.objectStoreNames.contains('impostazioni')){d.close();res(null);return;}
+    const q=d.transaction('impostazioni').objectStore('impostazioni').get('ai');q.onsuccess=()=>{d.close();const v=q.result&&q.result.valore;res(v&&v.chiave?v:null);};q.onerror=()=>{d.close();res(null);};}catch(e){d.close();res(null);}};r.onerror=()=>res(null);};
+  if(indexedDB.databases)indexedDB.databases().then(l=>{if(l.some(x=>x.name==='hitframe'))apri();else res(null);}).catch(apri);else apri();
+}catch(e){res(null);}});}
+const MOD_DEF={claude:'claude-sonnet-5-5',gemini:'gemini-3.8-flash',openai:'gpt-5-mini'};
+function sampleHitframe(cfg){return async(prompt)=>{
+  const m=(cfg.modello||'').trim()||MOD_DEF[cfg.fornitore];const k=cfg.chiave.trim();let r,j;
+  if(cfg.fornitore==='claude'){
+    r=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'content-type':'application/json','x-api-key':k,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},body:JSON.stringify({model:m,max_tokens:1500,messages:[{role:'user',content:prompt}]})});
+    j=await r.json();if(!r.ok)throw{code:r.status===429?'rate_limited':'errore'};return{text:(j.content||[]).filter(c=>c.type==='text').map(c=>c.text).join('\n')};
+  }
+  if(cfg.fornitore==='openai'){
+    r=await fetch('https://api.openai.com/v1/chat/completions',{method:'POST',headers:{'content-type':'application/json',authorization:'Bearer '+k},body:JSON.stringify({model:m,max_completion_tokens:1500,messages:[{role:'user',content:prompt}]})});
+    j=await r.json();if(!r.ok)throw{code:r.status===429?'rate_limited':'errore'};return{text:(j.choices&&j.choices[0]&&j.choices[0].message.content)||''};
+  }
+  r=await fetch('https://generativelanguage.googleapis.com/v1beta/models/'+encodeURIComponent(m)+':generateContent?key='+encodeURIComponent(k),{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({contents:[{role:'user',parts:[{text:prompt}]}]})});
+  j=await r.json();if(!r.ok)throw{code:r.status===429?'rate_limited':'errore'};return{text:((j.candidates&&j.candidates[0]&&j.candidates[0].content&&j.candidates[0].content.parts)||[]).map(p=>p.text||'').join('\n')};
+};}
+function getSample(){if(!SAMPLEp)SAMPLEp=new Promise(res=>{
+  let fatto=false;const fine=x=>{if(!fatto){fatto=true;res(x);}};
+  const daHitframe=()=>cfgHitframe().then(c=>fine(c?sampleHitframe(c):null));
+  try{if(window.claude&&window.claude.use){window.claude.use('sample').then(x=>x?fine(x):daHitframe()).catch(daHitframe);setTimeout(daHitframe,1100);}else daHitframe();}catch(e){daHitframe();}
+});return SAMPLEp;}
+getSample().then(x=>{if(!x){$('soGo').classList.add('hide');$('soHint').textContent='Nessuna AI collegata: metti la chiave in Hitframe › Io › Impostazioni › Assistente AI, oppure copia il testo e incollalo nell\'app Claude.';}else if(!(window.claude&&window.claude.use)){$('soHint').textContent='Scrive l\'AI collegata in Hitframe con la tua chiave. Il risultato lo puoi modificare qui sotto prima di copiarlo.';}});
 document.querySelectorAll('#soFmt .chip,#soTone .chip').forEach(b=>b.addEventListener('click',()=>{const grp=b.parentElement.id==='soFmt'?'fmt':'tone';SO[grp]=b.dataset.v;b.parentElement.querySelectorAll('.chip').forEach(x=>x.setAttribute('aria-pressed',String(x===b)));}));
 function runFacts(){
   const s=summary(),plan=planVal(),exp=expVal();
@@ -2249,8 +2273,8 @@ function soPrompt(){
 $('soPrompt').addEventListener('click',async()=>{if(!runFacts()){toast('Carica prima una run');return;}try{await navigator.clipboard.writeText(soPrompt());toast('Copiato: incollalo in Claude');}catch(e){toast('Copia non riuscita');}});
 async function soWrite(){
   if(SO.busy)return;if(!runFacts()){toast('Carica prima una run');return;}
-  const sample=await getSample();if(!sample){toast('Claude non è raggiungibile qui: usa «Copia il testo»');return;}
-  SO.busy=true;$('soGo').disabled=true;$('soAgain').disabled=true;$('soOut').classList.remove('hide');$('soState').textContent='Claude sta scrivendo…';$('soText').value='';
+  const sample=await getSample();if(!sample){toast('Nessuna AI collegata: usa «Copia il testo»');return;}
+  SO.busy=true;$('soGo').disabled=true;$('soAgain').disabled=true;$('soOut').classList.remove('hide');$('soState').textContent='L\'AI sta scrivendo…';$('soText').value='';
   try{
     const r=await sample(soPrompt()+'\nVersione diversa dalle precedenti: '+Math.random().toString(36).slice(2,6),{cache:false,onText:({text})=>{$('soText').value=text;}});
     $('soText').value=(r&&r.text)||$('soText').value;$('soState').textContent='modificabile';
